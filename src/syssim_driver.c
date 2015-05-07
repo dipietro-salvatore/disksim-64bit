@@ -52,9 +52,8 @@
 #include "disksim_rand48.h"
 
 
-#define	BLOCK	4096
+#define	BLOCK	8	// xfer 8 blocks
 #define	SECTOR	512
-#define	BLOCK2SECTOR	(BLOCK/SECTOR)
 
 typedef	struct	{
   int n;
@@ -166,7 +165,7 @@ main(int argc, char *argv[])
     r.devno = 0;
 
     /* NOTE: it is bad to use this internal disksim call from external... */
-    r.blkno = BLOCK2SECTOR*(DISKSIM_lrand48()%(nsectors/BLOCK2SECTOR));
+    r.blkno = DISKSIM_lrand48() % nsectors;
     r.bytecount = BLOCK;
     completed = 0;
     disksim_interface_request_arrive(disksim, now, &r);

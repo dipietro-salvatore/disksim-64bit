@@ -107,9 +107,21 @@
 #include "disksim_cache.h"
 
 
+ //***************************************************************************
+ // Function: controller_smart_queuefind
+ //   Return the queue of the given device
+ //
+ // Parameters:
+ //   void *queuefindparam      pointer to a controller object
+ //   int devno                 device number attached to the controller
+ //
+ // Returns: struct ioq *
+ //   Returns a pointer to an ioq for the given device
+ //***************************************************************************
+
 static struct ioq * controller_smart_queuefind (void *queuefindparam, int devno)
 {
-   controller *currctlr = queuefindparam;
+   controller *currctlr = (controller *)queuefindparam;
    ASSERT1((devno >= 0) && (devno < device_get_numdevices()), "devno", devno);
    return(currctlr->devices[devno].queue);
 }
@@ -117,7 +129,7 @@ static struct ioq * controller_smart_queuefind (void *queuefindparam, int devno)
 
 static void controller_smart_wakeup (void *wakeupfuncparam, struct cacheevent *cacheevent)
 {
-   controller *currctlr = wakeupfuncparam;
+   controller *currctlr = (controller *)wakeupfuncparam;
    if (cacheevent) {
       currctlr->cache->cache_wakeup_complete(currctlr->cache, cacheevent);
    }
@@ -126,12 +138,17 @@ static void controller_smart_wakeup (void *wakeupfuncparam, struct cacheevent *c
 
 static void controller_smart_issue_access (void *issuefuncparam, ioreq_event *curr)
 {
-   controller *currctlr = issuefuncparam;
+   controller *currctlr = (controller *)issuefuncparam;
    struct ioq *queue = currctlr->devices[curr->devno].queue;
    int numout = ioqueue_get_reqoutstanding(queue);
 
+#ifdef DEBUG_CTLRSMART
+   fprintf (outputfile, "*** %f: controller_smart_issue_access busno %x, buspath %x, slotno %x, slotpath %x\n", simtime, curr->busno, currctlr->devices[curr->devno].buspath.value, curr->slotno, currctlr->devices[curr->devno].slotpath.value);
+   fprintf (outputfile, "*** %f: controller_smart_issue_access type %d, devno %d, blkno %d, bcount %d, flags 0x%x\n", simtime, curr->type, curr->devno, curr->blkno, curr->bcount, curr->flags );
+   fflush( outputfile );
+#endif
+
    /* in case the cache changes to which device the request is sent */
-//fprintf (stderr, "busno %x, buspath %x, slotno %x, slotpath %x\n", curr->busno, currctlr->devices[curr->devno].buspath.value, curr->slotno, currctlr->devices[curr->devno].slotpath.value);
    curr->busno = currctlr->devices[curr->devno].buspath.value;
    curr->slotno = currctlr->devices[curr->devno].slotpath.value;
 
@@ -146,9 +163,12 @@ static void controller_smart_issue_access (void *issuefuncparam, ioreq_event *cu
 static void controller_smart_disk_data_transfer (controller *currctlr, ioreq_event *curr)
 {
    ioreq_event *tmp = (ioreq_event *) getfromextraq();
-/*
-fprintf (outputfile, "%f: controller_smart_disk_data_transfer: devno %d, bcount %d\n", simtime, curr->devno, curr->bcount);
-*/
+
+#ifdef DEBUG_CTLRSMART
+   fprintf (outputfile, "*** %f: controller_smart_disk_data_transfer: devno %d, bcount %d\n", simtime, curr->devno, curr->bcount);
+   fflush( outputfile );
+#endif
+
    curr->time = max(device_get_blktranstime(curr), currctlr->blktranstime);
    tmp->time = simtime + ((double) curr->bcount * curr->time);
    tmp->type = CONTROLLER_DATA_TRANSFER_COMPLETE;
@@ -175,6 +195,11 @@ static void controller_smart_disk_data_transfer_complete (controller *currctlr, 
 {
    ioreq_event *tmp = (ioreq_event *) curr->tempptr1;
 
+#ifdef DEBUG_CTLRSMART
+   fprintf (outputfile, "*** %f: controller_smart_disk_data_transfer_complete: devno %d, blkno %d, bcount %d, flags 0x%x\n", simtime, curr->devno, curr->blkno, curr->bcount, curr->flags );
+   fflush( outputfile );
+#endif
+
    tmp->bcount -= curr->bcount;
    addtoextraq((event *) curr);
    ASSERT(tmp->bcount >= 0);
@@ -198,10 +223,12 @@ static void controller_smart_disk_data_transfer_complete (controller *currctlr, 
 
 static void controller_smart_request_complete (void *donefuncparam, ioreq_event *curr)
 {
-   controller *currctlr = donefuncparam;
-/*
-fprintf (outputfile, "Request completed at smart controller: devno %d, blkno %d\n", curr->devno, curr->blkno);
-*/
+   controller *currctlr = (controller *)donefuncparam;
+
+#ifdef DEBUG_CTLRSMART
+   fprintf (outputfile, "*** %f: controller_smart_request_complete Request completed at smart controller: devno %d, blkno %d, bcount %d, flags 0x%x\n", simtime, curr->devno, curr->blkno, curr->bcount, curr->flags);
+   fflush( outputfile );
+#endif
 
    curr->type = IO_INTERRUPT_ARRIVE;
    curr->cause = COMPLETION;
@@ -212,6 +239,11 @@ fprintf (outputfile, "Request completed at smart controller: devno %d, blkno %d\
 static void controller_smart_host_data_transfer_complete (controller *currctlr, ioreq_event *curr)
 {
    /* DMA to/from host complete */
+
+#ifdef DEBUG_CTLRSMART
+   fprintf (outputfile, "*** %f: controller_smart_host_data_transfer_complete: devno %d, blkno %d, bcount %d, flags 0x%x\n", simtime, curr->devno, curr->blkno, curr->bcount, curr->flags);
+   fflush( outputfile );
+#endif
 
    if (curr->flags & READ) {
       currctlr->cache->cache_free_block_clean(currctlr->cache, curr);
@@ -239,7 +271,12 @@ static void controller_smart_host_data_transfer_complete (controller *currctlr, 
 
 static void controller_smart_host_data_transfer (void *donefuncparam, ioreq_event *curr)
 {
-   controller *currctlr = donefuncparam;
+   controller *currctlr = (controller *)donefuncparam;
+
+#ifdef DEBUG_CTLRSMART
+   fprintf (outputfile, "*** %f: controller_smart_host_data_transfer: devno %d, blkno %d, bcount %d, flags 0x%x\n", simtime, curr->devno, curr->blkno, curr->bcount, curr->flags );
+   fflush( outputfile );
+#endif
 
    /* DMA data to/from host */
 
@@ -266,9 +303,10 @@ static void controller_smart_host_data_transfer (void *donefuncparam, ioreq_even
 
 static void controller_smart_request_arrive (controller *currctlr, ioreq_event *curr)
 {
-/*
-fprintf (outputfile, "Request arrived at smart controller: devno %d, blkno %d, flags %x\n", curr->devno, curr->blkno, curr->flags);
-*/
+#ifdef DEBUG_CTLRSMART
+   fprintf (outputfile, "*** %f: controller_smart_request_arrive Request arrived at smart controller: devno %d, blkno %d, flags %x\n", simtime, curr->devno, curr->blkno, curr->flags);
+   fflush( outputfile );
+#endif
 
    /* Cache will call "done" function if cache access doesn't block */
 
@@ -283,6 +321,11 @@ static void controller_smart_access_complete (controller *currctlr, ioreq_event 
    int devno = curr->devno;
    int numout;
 
+#ifdef DEBUG_CTLRSMART
+   fprintf (outputfile, "*** %f: controller_smart_access_complete: devno %d, blkno %d, bcount %d, flags 0x%x\n", simtime, curr->devno, curr->blkno, curr->bcount, curr->flags );
+   fflush( outputfile );
+#endif
+
    /* Responds to completion interrupt */
 
    done->type = IO_INTERRUPT_COMPLETE;
@@ -296,7 +339,7 @@ static void controller_smart_access_complete (controller *currctlr, ioreq_event 
    while ((done = curr)) {
       curr = curr->next;
       /* call back into cache with completion -- let it do request_complete */
-      controller_smart_wakeup(currctlr, currctlr->cache->cache_disk_access_complete(currctlr->cache, done));
+      controller_smart_wakeup(currctlr, (struct cacheevent *)currctlr->cache->cache_disk_access_complete(currctlr->cache, done));
    }
 
    /* Initiate another request, if any pending */
@@ -310,6 +353,11 @@ static void controller_smart_access_complete (controller *currctlr, ioreq_event 
 
 static void controller_smart_ready_to_transfer (controller *currctlr, ioreq_event *curr)
 {
+#ifdef DEBUG_CTLRSMART
+   fprintf (outputfile, "*** %f: controller_smart_ready_to_transfer: devno %d, blkno %d, bcount %d, flags 0x%x\n", simtime, curr->devno, curr->blkno, curr->bcount, curr->flags );
+   fflush( outputfile );
+#endif
+
    curr->type = IO_INTERRUPT_COMPLETE;
    curr->cause = RECONNECT;
    currctlr->outbusowned = controller_get_downward_busno(currctlr, curr, NULL);
@@ -320,6 +368,11 @@ static void controller_smart_ready_to_transfer (controller *currctlr, ioreq_even
 
 static void controller_smart_disconnect (controller *currctlr, ioreq_event *curr)
 {
+#ifdef DEBUG_CTLRSMART
+   fprintf (outputfile, "*** %f: controller_smart_disconnect: devno %d, blkno %d, bcount %d, flags 0x%x\n", simtime, curr->devno, curr->blkno, curr->bcount, curr->flags );
+   fflush( outputfile );
+#endif
+
    curr->type = IO_INTERRUPT_COMPLETE;
    currctlr->outbusowned = controller_get_downward_busno(currctlr, curr, NULL);
    controller_send_event_down_path(currctlr, curr, currctlr->ovrhd_disk_disconnect);
@@ -329,6 +382,11 @@ static void controller_smart_disconnect (controller *currctlr, ioreq_event *curr
 
 static void controller_smart_reconnect_to_transfer (controller *currctlr, ioreq_event *curr)
 {
+#ifdef DEBUG_CTLRSMART
+   fprintf (outputfile, "*** %f: controller_smart_reconnect_to_transfer: devno %d, blkno %d, bcount %d, flags 0x%x\n", simtime, curr->devno, curr->blkno, curr->bcount, curr->flags );
+   fflush( outputfile );
+#endif
+
    curr->type = IO_INTERRUPT_COMPLETE;
    currctlr->outbusowned = controller_get_downward_busno(currctlr, curr, NULL);
    controller_send_event_down_path(currctlr, curr, currctlr->ovrhd_disk_reconnect);
@@ -338,6 +396,11 @@ static void controller_smart_reconnect_to_transfer (controller *currctlr, ioreq_
 
 static void controller_smart_interrupt_arrive (controller *currctlr, ioreq_event *curr)
 {
+#ifdef DEBUG_CTLRSMART
+   fprintf (outputfile, "*** %f: controller_smart_interrupt_arrive: cause %s, devno %d, blkno %d, bcount %d, flags 0x%x\n", simtime, getCauseString( curr->cause ), curr->devno, curr->blkno, curr->bcount, curr->flags );
+   fflush( outputfile );
+#endif
+
    switch (curr->cause) {
 
       case COMPLETION:
@@ -365,6 +428,11 @@ static void controller_smart_interrupt_arrive (controller *currctlr, ioreq_event
 
 static void controller_smart_interrupt_complete (controller *currctlr, ioreq_event *curr)
 {
+#ifdef DEBUG_CTLRSMART
+   fprintf (outputfile, "*** %f: controller_smart_interrupt_complete: devno %d, blkno %d, bcount %d, flags 0x%x\n", simtime, curr->devno, curr->blkno, curr->bcount, curr->flags );
+   fflush( outputfile );
+#endif
+
    switch (curr->cause) {
 
        case COMPLETION:
@@ -380,6 +448,11 @@ static void controller_smart_interrupt_complete (controller *currctlr, ioreq_eve
 
 void controller_smart_event_arrive (controller *currctlr, ioreq_event *curr)
 {
+#ifdef DEBUG_CTLRSMART
+   fprintf (outputfile, "*** %f: controller_smart_event_arrive: type %d, devno %d, blkno %d, bcount %d, flags 0x%x\n", simtime, curr->type, curr->devno, curr->blkno, curr->bcount, curr->flags );
+   fflush( outputfile );
+#endif
+
    switch (curr->type) {
 
       case IO_ACCESS_ARRIVE:
@@ -413,7 +486,7 @@ void controller_smart_event_arrive (controller *currctlr, ioreq_event *curr)
          break;
 
       default:
-         fprintf(stderr, "Unknown event type arriving at 53c700 controller: %d\n", curr->type);
+         fprintf(stderr, "Unknown event type arriving at SMART controller: %d\n", curr->type);
          exit(1);
    }
 }
@@ -474,7 +547,7 @@ void controller_smart_printstats (controller *currctlr, char *prefix)
    ctlrinfo_t *ctlrinfo = disksim->ctlrinfo;
    int devno;
    char devprefix[181];
-   struct ioq **queueset = DISKSIM_malloc (currctlr->numdevices * sizeof(void *));
+   struct ioq **queueset = (struct ioq **)DISKSIM_malloc (currctlr->numdevices * sizeof(void *));
 
    if (ctlrinfo->ctl_printcachestats) {
       currctlr->cache->cache_printstats(currctlr->cache, prefix);
@@ -496,4 +569,6 @@ void controller_smart_printstats (controller *currctlr, char *prefix)
       }
    }
 }
+
+// End of file
 

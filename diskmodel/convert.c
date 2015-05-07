@@ -60,6 +60,11 @@ INLINE double      dm_angle_itod(dm_angle_t a)
   return (double)a / (double)((long long)1 << 32);
 }
 
+
+// hurst_r this code doesn't look right
+// why is an integer subtracted from a double?
+// Seems for angles greater than 1.0 we need to subtract 1.0 until less
+// Like a mod 1.0
 INLINE dm_angle_t  dm_angle_dtoi(double a)
 {
   if(a > 1.0) 
@@ -68,4 +73,5 @@ INLINE dm_angle_t  dm_angle_dtoi(double a)
   return (dm_angle_t)(a * (double)((long long)1 << 32));
 }
 
+// End of file
 

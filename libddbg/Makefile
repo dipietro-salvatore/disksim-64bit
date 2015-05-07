@@ -50,7 +50,7 @@ distclean: clean
 	rm -f *~
 
 libddbg.a: $(LT_OBJ)
-	ar cru $@ $^
+	ar crus $@ $^
 
 
 #test: test.c libddbg.a libddbg.h

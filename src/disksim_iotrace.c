@@ -103,11 +103,11 @@
 #include "disksim_global.h"
 #include "disksim_hptrace.h"
 #include "disksim_iotrace.h"
-
+#include "disksim_simresult.h"
 
 static void iotrace_initialize_iotrace_info ()
 {
-   disksim->iotrace_info = DISKSIM_malloc (sizeof(iotrace_info_t));
+   disksim->iotrace_info = (iotrace_info_t *)DISKSIM_malloc (sizeof(iotrace_info_t));
    bzero ((char *)disksim->iotrace_info, sizeof(iotrace_info_t));
 
    tracebasetime = 0.0;
@@ -204,6 +204,9 @@ static int iotrace_read_short (FILE *tracefile, short *shortptr)
 }
 
 
+// obsolete routine??
+/*
+
 static int iotrace_read_int32 (FILE *tracefile, int32_t *intP)
 {
    int i;
@@ -218,35 +221,36 @@ static int iotrace_read_int32 (FILE *tracefile, int32_t *intP)
       for (i=0; i<sizeof(int); i++) {
          swapval.byte[i] = intcharval.byte[(sizeof(int) - i - 1)];
       }
-/*
+
       fprintf (outputfile, "intptr.value %x, swapval.value %x\n", intcharval.value, swapval.value);
-*/
+
       intcharval.value = swapval.value;
    }
    *intP = intcharval.value;
    return(0);
 }
+*/
 
 
 #define iotrace_read_float(a, b) iotrace_read_int32(a, b)
 
 
-ioreq_event * iotrace_validate_get_ioreq_event (FILE *tracefile, ioreq_event *new)
+ioreq_event * iotrace_validate_get_ioreq_event (FILE *tracefile, ioreq_event *new_event)
 {
    char line[201];
    char rw;
    double servtime;
 
    if (fgets(line, 200, tracefile) == NULL) {
-      addtoextraq((event *) new);
+      addtoextraq((event *) new_event);
       return(NULL);
    }
-   new->time = simtime + (validate_nextinter / (double) 1000);
+   new_event->time = simtime + (validate_nextinter / (double) 1000);
    if (sscanf(line, "%c %s %d %d %lf %lf\n", 
 	      &rw, 
 	      validate_buffaction, 
-	      &new->blkno, 
-	      &new->bcount, 
+	      &new_event->blkno, 
+	      &new_event->bcount, 
 	      &servtime, 
 	      &validate_nextinter) != 6) 
    {
@@ -255,28 +259,28 @@ ioreq_event * iotrace_validate_get_ioreq_event (FILE *tracefile, ioreq_event *ne
    }
    validate_lastserv = servtime / (double) 1000;
    if (rw == 'R') {
-      new->flags = READ;
+      new_event->flags = READ;
    } else if (rw == 'W') {
-      new->flags = WRITE;
+      new_event->flags = WRITE;
    } else {
       fprintf(stderr, "Invalid R/W value: %c\n", rw);
       exit(1);
    }
-   new->devno = 0;
-   new->buf = 0;
-   new->opid = 0;
-   new->cause = 0;
-   new->busno = 0;
-   new->tempint2 = 0;
-   new->tempint1 = 0;
-   validate_lastblkno = new->blkno;
-   validate_lastbcount = new->bcount;
-   validate_lastread = new->flags & READ;
-   return(new);
+   new_event->devno = 0;
+   new_event->buf = 0;
+   new_event->opid = 0;
+   new_event->cause = 0;
+   new_event->busno = 0;
+   new_event->tempint2 = 0;
+   new_event->tempint1 = 0;
+   validate_lastblkno = new_event->blkno;
+   validate_lastbcount = new_event->bcount;
+   validate_lastread = new_event->flags & READ;
+   return(new_event);
 }
 
 
-static ioreq_event * iotrace_dec_get_ioreq_event (FILE *tracefile, ioreq_event *new)
+static ioreq_event * iotrace_dec_get_ioreq_event (FILE *tracefile, ioreq_event *new_event)
 {
    assert ("removed for distribution" == 0);
    iotrace_read_space (tracefile, NULL, 0);
@@ -315,7 +319,9 @@ static void iotrace_hpl_srt_convert_flags (ioreq_event *curr)
 }
 
 
-static ioreq_event * iotrace_hpl_get_ioreq_event (FILE *tracefile, ioreq_event *new)
+// obsolete routine??
+/*
+static ioreq_event * iotrace_hpl_get_ioreq_event (FILE *tracefile, ioreq_event *new_event)
 {
    int32_t size;
    int32_t id;
@@ -331,7 +337,7 @@ static ioreq_event * iotrace_hpl_get_ioreq_event (FILE *tracefile, ioreq_event *
       failure |= iotrace_read_int32(tracefile, &sec);
       failure |= iotrace_read_int32(tracefile, &usec);
       if (failure) {
-         addtoextraq((event *) new);
+         addtoextraq((event *) new_event);
          return(NULL);
       }
       if (((id >> 16) < 1) || ((id >> 16) > 4)) {
@@ -342,65 +348,66 @@ static ioreq_event * iotrace_hpl_get_ioreq_event (FILE *tracefile, ioreq_event *
          fprintf(stderr, "Unexpected record type - %x\n", id);
          exit(1);
       }
-      new->time = (double) sec * (double) MILLI;
-      new->time += (double) usec / (double) MILLI;
+      new_event->time = (double) sec * (double) MILLI;
+      new_event->time += (double) usec / (double) MILLI;
 
-      if ((disksim->traceheader == FALSE) && (new->time == 0.0)) {
+      if ((disksim->traceheader == FALSE) && (new_event->time == 0.0)) {
          tracebasetime = simtime;
       }
 
-      failure |= iotrace_read_int32(tracefile, &val);    /* traced request start time */
-      new->tempint1 = val;
-      failure |= iotrace_read_int32(tracefile, &val);    /* traced request stop time */
-      new->tempint2 = val;
-      new->tempint2 -= new->tempint1;
+      failure |= iotrace_read_int32(tracefile, &val);     traced request start time
+      new_event->tempint1 = val;
+      failure |= iotrace_read_int32(tracefile, &val);     traced request stop time
+      new_event->tempint2 = val;
+      new_event->tempint2 -= new_event->tempint1;
       failure |= iotrace_read_int32(tracefile, &val);
-      new->bcount = val;
-      if (new->bcount & 0x000001FF) {
-         fprintf(stderr, "HPL request for non-512B multiple size: %d\n", new->bcount);
+      new_event->bcount = val;
+      if (new_event->bcount & 0x000001FF) {
+         fprintf(stderr, "HPL request for non-512B multiple size: %d\n", new_event->bcount);
          exit(1);
       }
-      new->bcount = new->bcount >> 9;
+      new_event->bcount = new_event->bcount >> 9;
       failure |= iotrace_read_int32(tracefile, &val);
-      new->blkno = val;
+      new_event->blkno = val;
       failure |= iotrace_read_int32(tracefile, &val);
-      new->devno = (val >> 8) & 0xFF;
-      failure |= iotrace_read_int32(tracefile, &val);       /* drivertype */
-      failure |= iotrace_read_int32(tracefile, &val);       /* cylno */
-      /* for convenience and historical reasons, this cast is being allowed */
-      /* (the value is certain to be less than 32 sig bits, and will not be */
-      /* used as a pointer).                                                */
-      new->buf = (void *) val;
+      new_event->devno = (val >> 8) & 0xFF;
+      failure |= iotrace_read_int32(tracefile, &val);        drivertype
+      failure |= iotrace_read_int32(tracefile, &val);        cylno
+       for convenience and historical reasons, this cast is being allowed
+       (the value is certain to be less than 32 sig bits, and will not be
+       used as a pointer).
+      new_event->buf = (void *) val;
       failure |= iotrace_read_int32(tracefile, &val);
-      new->flags = val;
-      iotrace_hpl_srt_convert_flags(new);
-      failure |= iotrace_read_int32(tracefile, &junkint);           /* info */
+      new_event->flags = val;
+      iotrace_hpl_srt_convert_flags(new_event);
+      failure |= iotrace_read_int32(tracefile, &junkint);            info
       size -= 13 * sizeof(int32_t);
       if ((id >> 16) == 4) {
-         failure |= iotrace_read_int32(tracefile, &val);  /* queuelen */
-         new->slotno = val;
+         failure |= iotrace_read_int32(tracefile, &val);   queuelen
+         new_event->slotno = val;
          size -= sizeof(int32_t);
       }
       if ((id & 0xFFFF) == HPL_SUSPECTIO) {
-         failure |= iotrace_read_int32(tracefile, &junkint);    /* susflags */
+         failure |= iotrace_read_int32(tracefile, &junkint);     susflags
          size -= sizeof(int32_t);
       }
       if (failure) {
-         addtoextraq((event *) new);
+         addtoextraq((event *) new_event);
          return(NULL);
       }
       if (size) {
          fprintf(stderr, "Unmatched size for record - %d\n", size);
          exit(1);
       }
-      new->cause = 0;
-      new->opid = 0;
-      new->busno = 0;
+      new_event->cause = 0;
+      new_event->opid = 0;
+      new_event->busno = 0;
       if ((id & 0xFFFF) == HPL_SHORTIO) {
-         return(new);
+         return(new_event);
       }
    }
 }
+*/
 
 
 static int iotrace_month_convert (char *monthstr, int year)
@@ -459,8 +466,9 @@ static double iotrace_raw_get_hirestime (int bigtime, int smalltime)
 
 
 /* kept mainly as an example */
+/*
 
-static ioreq_event * iotrace_raw_get_ioreq_event (FILE *tracefile, ioreq_event *new)
+static ioreq_event * iotrace_raw_get_ioreq_event (FILE *tracefile, ioreq_event *new_event)
 {
    int bigtime;
    short small;
@@ -474,7 +482,7 @@ static ioreq_event * iotrace_raw_get_ioreq_event (FILE *tracefile, ioreq_event *
    bigtime = val;
    failure |= iotrace_read_short(tracefile, &small);
    smalltime = ((int) small) & 0xFFFF;
-   new->time = iotrace_raw_get_hirestime(bigtime, smalltime);
+   new_event->time = iotrace_raw_get_hirestime(bigtime, smalltime);
    failure |= iotrace_read_short(tracefile, &small);
    failure |= iotrace_read_int32(tracefile, &val);
    bigtime = val;
@@ -488,62 +496,63 @@ static ioreq_event * iotrace_raw_get_ioreq_event (FILE *tracefile, ioreq_event *
    failure |= iotrace_read_char(tracefile, &order);
    failure |= iotrace_read_char(tracefile, &crit);
    if (crit) {
-      new->flags |= TIME_CRITICAL;
+      new_event->flags |= TIME_CRITICAL;
    }
    failure |= iotrace_read_int32(tracefile, &val);
-   new->bcount = val >> 9;
+   new_event->bcount = val >> 9;
    failure |= iotrace_read_int32(tracefile, &val);
-   new->blkno = val;
+   new_event->blkno = val;
    failure |= iotrace_read_int32(tracefile, &val);
-   new->devno = val;
+   new_event->devno = val;
    failure |= iotrace_read_int32(tracefile, &val);
-   new->flags = val & READ;
-   new->cause = 0;
-   new->buf = 0;
-   new->opid = 0;
-   new->busno = 0;
-   new->tempint1 = (int)((schedtime - new->time) * (double) 1000);
-   new->tempint2 = (int)((donetime - schedtime) * (double) 1000);
+   new_event->flags = val & READ;
+   new_event->cause = 0;
+   new_event->buf = 0;
+   new_event->opid = 0;
+   new_event->busno = 0;
+   new_event->tempint1 = (int)((schedtime - new_event->time) * (double) 1000);
+   new_event->tempint2 = (int)((donetime - schedtime) * (double) 1000);
    if (failure) {
-      addtoextraq((event *) new);
-      new = NULL;
+      addtoextraq((event *) new_event);
+      new_event = NULL;
    }
-   return(new);
+   return(new_event);
 }
+*/
 
 
-static ioreq_event * iotrace_emcsymm_get_ioreq_event (FILE *tracefile, ioreq_event *new)
+static ioreq_event * iotrace_emcsymm_get_ioreq_event (FILE *tracefile, ioreq_event *new_event)
 {
    char line[201];
    char operation[15];
    unsigned int director;
 
    if (fgets(line, 200, tracefile) == NULL) {
-      addtoextraq((event *) new);
+      addtoextraq((event *) new_event);
       return(NULL);
    }
-   if (sscanf(line, "%lf %s %x %x %d %d\n", &new->time, operation, &director, &new->devno, &new->blkno, &new->bcount) != 6) {
+   if (sscanf(line, "%lf %s %x %x %d %d\n", &new_event->time, operation, &director, &new_event->devno, &new_event->blkno, &new_event->bcount) != 6) {
       fprintf(stderr, "Wrong number of arguments for I/O trace event type\n");
       fprintf(stderr, "line: %s", line);
       ddbg_assert(0);
    }
    if (!strcasecmp(operation,"Read")) {
-      new->flags = READ;
+      new_event->flags = READ;
    } else if (!strcasecmp(operation,"Write")) {
-      new->flags = WRITE;
+      new_event->flags = WRITE;
    } else {
       fprintf(stderr, "Unknown operation: %s in iotrace event\n",operation);
       fprintf(stderr, "line: %s", line);
       exit(1);
    }
-   new->buf = 0;
-   new->opid = 0;
-   new->busno = 0;
-   new->cause = 0;
-   return(new);
+   new_event->buf = 0;
+   new_event->opid = 0;
+   new_event->busno = 0;
+   new_event->cause = 0;
+   return(new_event);
 }
 
-static ioreq_event * iotrace_emcbackend_get_ioreq_event (FILE *tracefile, ioreq_event *new)
+static ioreq_event * iotrace_emcbackend_get_ioreq_event (FILE *tracefile, ioreq_event *new_event)
 {
    char line[201];
    char operation[15];
@@ -552,91 +561,96 @@ static ioreq_event * iotrace_emcbackend_get_ioreq_event (FILE *tracefile, ioreq_
    unsigned int disk, hyper;
 
    if (fgets(line, 200, tracefile) == NULL) {
-      addtoextraq((event *) new);
+      addtoextraq((event *) new_event);
       return(NULL);
    }
 
    if (sscanf(line, "%lf %s %x %x %d %d %s %d %d\n", 
-              &new->time, operation, &director, &hyper, &new->blkno, &new->bcount, bus, &disk, &new->devno) != 9) {
+              &new_event->time, operation, &director, &hyper, &new_event->blkno, &new_event->bcount, bus, &disk, &new_event->devno) != 9) {
       fprintf(stderr, "Wrong number of arguments for I/O trace event type\n");
       fprintf(stderr, "line: %s", line);
       exit(0);
    }
    if (!strcasecmp(operation,"Read")) {
-      new->flags = READ;
+      new_event->flags = READ;
    } else if (!strcasecmp(operation,"Write")) {
-      new->flags = WRITE;
+      new_event->flags = WRITE;
    } else {
       fprintf(stderr, "Unknown operation: %s in iotrace event\n",operation);
       fprintf(stderr, "line: %s", line);
       exit(0);
    }
 
-   new->time *= 1000.0;  /* emc trace times are in seconds!!  */
+   new_event->time *= 1000.0;  /* emc trace times are in seconds!!  */
 
-   new->buf = 0;
-   new->opid = 0;
-   new->busno = 0;
-   new->cause = 0;
-   return(new);
+   new_event->buf = 0;
+   new_event->opid = 0;
+   new_event->busno = 0;
+   new_event->cause = 0;
+   return(new_event);
 }
 
 
-static ioreq_event * iotrace_ascii_get_ioreq_event (FILE *tracefile, ioreq_event *new)
+static ioreq_event * iotrace_ascii_get_ioreq_event (FILE *tracefile, ioreq_event *new_event)
 {
    char line[201];
 
    if (fgets(line, 200, tracefile) == NULL) {
-      addtoextraq((event *) new);
+      addtoextraq((event *) new_event);
       return(NULL);
    }
-   if (sscanf(line, "%lf %d %d %d %x\n", &new->time, &new->devno, &new->blkno, &new->bcount, &new->flags) != 5) {
+
+#ifdef DEBUG_IOTRACE
+   fprintf( outputfile, "*** %f: ASCII Line: %s", simtime, line );
+   fflush(outputfile);
+#endif
+
+   if (sscanf(line, "%lf %d %d %d %x\n", &new_event->time, &new_event->devno, &new_event->blkno, &new_event->bcount, &new_event->flags) != 5) {
       fprintf(stderr, "Wrong number of arguments for I/O trace event type\n");
       fprintf(stderr, "line: %s", line);
       ddbg_assert(0);
    }
-   if (new->flags & ASYNCHRONOUS) {
-      new->flags |= (new->flags & READ) ? TIME_LIMITED : 0;
-   } else if (new->flags & SYNCHRONOUS) {
-      new->flags |= TIME_CRITICAL;
+   if (new_event->flags & ASYNCHRONOUS) {
+      new_event->flags |= (new_event->flags & READ) ? TIME_LIMITED : 0;
+   } else if (new_event->flags & SYNCHRONOUS) {
+      new_event->flags |= TIME_CRITICAL;
    }
-
-   new->buf = 0;
-   new->opid = 0;
-   new->busno = 0;
-   new->cause = 0;
-   return(new);
+   new_event->buf = 0;
+   new_event->opid = 0;
+   new_event->busno = 0;
+   new_event->cause = 0;
+   return(new_event);
 }
 
-static ioreq_event * iotrace_batch_get_ioreq_event (FILE *tracefile, ioreq_event *new)
+static ioreq_event * iotrace_batch_get_ioreq_event (FILE *tracefile, ioreq_event *new_event)
 {
    char line[201];
 
    if (fgets(line, 200, tracefile) == NULL) {
-      addtoextraq((event *) new);
+      addtoextraq((event *) new_event);
       return(NULL);
    }
-   if (sscanf(line, "%lf %d %d %d %x %d\n", &new->time, &new->devno, &new->blkno, &new->bcount, &new->flags, &new->batchno) != 6) {
+   if (sscanf(line, "%lf %d %d %d %x %d\n", &new_event->time, &new_event->devno, &new_event->blkno, &new_event->bcount, &new_event->flags, &new_event->batchno) != 6) {
       fprintf(stderr, "Wrong number of arguments for I/O trace event type\n");
       fprintf(stderr, "line: %s", line);
       ddbg_assert(0);
    }
-   if (new->flags & ASYNCHRONOUS) {
-      new->flags |= (new->flags & READ) ? TIME_LIMITED : 0;
-   } else if (new->flags & SYNCHRONOUS) {
-      new->flags |= TIME_CRITICAL;
+   if (new_event->flags & ASYNCHRONOUS) {
+      new_event->flags |= (new_event->flags & READ) ? TIME_LIMITED : 0;
+   } else if (new_event->flags & SYNCHRONOUS) {
+      new_event->flags |= TIME_CRITICAL;
    }
-   if (new->flags & BATCH_COMPLETE) {
-     new->batch_complete = 1;
+   if (new_event->flags & BATCH_COMPLETE) {
+     new_event->batch_complete = 1;
    } else {
-     new->batch_complete = 0;
+     new_event->batch_complete = 0;
    }
 
-   new->buf = 0;
-   new->opid = 0;
-   new->busno = 0;
-   new->cause = 0;
-   return(new);
+   new_event->buf = 0;
+   new_event->opid = 0;
+   new_event->busno = 0;
+   new_event->cause = 0;
+   return(new_event);
 }
 
 
@@ -648,13 +662,13 @@ ioreq_event * iotrace_get_ioreq_event (FILE *tracefile, int traceformat, ioreq_e
       temp = iotrace_ascii_get_ioreq_event(tracefile, temp);
       break;
       
-   case RAW:
-      temp = iotrace_raw_get_ioreq_event(tracefile, temp);
-      break;
+//   case RAW:
+//      temp = iotrace_raw_get_ioreq_event(tracefile, temp);
+//      break;
       
-   case HPL:
-      temp = iotrace_hpl_get_ioreq_event(tracefile, temp);
-      break;
+//   case HPL:
+//      temp = iotrace_hpl_get_ioreq_event(tracefile, temp);
+//      break;
 
    case DEC:
       temp = iotrace_dec_get_ioreq_event(tracefile, temp);
@@ -773,4 +787,6 @@ void iotrace_printstats (FILE *outfile)
       fprintf(outfile, "Async Writes:\t%d\t%5.2f\t%5.2f\n", asyncwrites, ((double) asyncwrites / (double) (hpreads + hpwrites)), ((double) asyncwrites / (double) hpwrites));
    }
 }
+
+// End of file
 

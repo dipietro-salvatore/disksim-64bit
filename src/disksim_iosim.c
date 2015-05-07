@@ -103,14 +103,23 @@
 
 #include "modules/modules.h"
 
+char * iosim_decodeInterruptEvent( ioreq_event *ioReqEvent )
+{
+    char * reasons[] = { "READY_TO_TRANSFER", "DISCONNECT", "RECONNECT", "COMPLETION" };
 
+    char * reason = "";
+    if( ioReqEvent->cause < 0 )
+    {
+    	reason = reasons[ioReqEvent->cause + 4];
+    }
 
-
+    return reason;
+}
 
 void iosim_initialize_iosim_info (void)
 {
-   disksim->iosim_info = DISKSIM_malloc (sizeof(iosim_info_t));
-   bzero ((char *)disksim->iosim_info, sizeof(iosim_info_t));
+   disksim->iosim_info = (struct iosim_info *)DISKSIM_malloc (sizeof(struct iosim_info));
+   bzero ((char *)disksim->iosim_info, sizeof(struct iosim_info));
 
    /* initializations that get remapped into iosim_info */
    ioscale = 1.0;
@@ -121,10 +130,10 @@ void iosim_initialize_iosim_info (void)
 
 ioreq_event * ioreq_copy (ioreq_event *old)
 {
-   ioreq_event *new = (ioreq_event *) getfromextraq();
-   memmove ((char *)new, (char *)old, sizeof(ioreq_event));
-   /* bcopy ((char *)old, (char *)new, sizeof (ioreq_event)); */
-   return(new);
+   ioreq_event *new_event = (ioreq_event *) getfromextraq();
+   memmove ((char *)new_event, (char *)old, sizeof(ioreq_event));
+   /* bcopy ((char *)old, (char *)new_event, sizeof (ioreq_event)); */
+   return(new_event);
 }
 
 
@@ -211,9 +220,17 @@ void io_interrupt_complete (ioreq_event *intrp)
 void io_internal_event(ioreq_event *curr)
 {
    ASSERT(curr != NULL);
+
+#ifdef DEBUG_IOSIM
+   fprintf(outputfile, "%f: io_internal_event, time %f, type %s (%d), ", simtime, curr->time, getEventString(curr->type), curr->type );
+   fprintf(outputfile, "busno %d, slotno %d, devno %d, blkno %d, bcount %d, %s(%x)\n", curr->busno, curr->slotno, curr->devno, curr->blkno, curr->bcount, (curr->flags & 1) ? "read" : "write", curr->flags );
+   fflush(outputfile);
+
 /*
 fprintf (outputfile, "%f: io_internal_event entered with event type %d, %f\n", curr->time, curr->type, simtime);
 */
+#endif
+
    switch (curr->type) {
    case IO_REQUEST_ARRIVE:
      iodriver_request(0, curr);
@@ -258,6 +275,8 @@ fprintf (outputfile, "%f: io_internal_event entered with event type %d, %f\n", c
    case MEMS_BUS_INITIATE:
    case MEMS_BUS_TRANSFER:
    case MEMS_BUS_UPDATE:
+   case SSD_CLEAN_ELEMENT:
+   case SSD_CLEAN_GANG:
      device_event_arrive(curr);
      break;
 
@@ -280,6 +299,8 @@ fprintf (outputfile, "%f: io_internal_event entered with event type %d, %f\n", c
 
    default:
      fprintf(stderr, "Unknown event type passed to io_internal_events\n");
+     fprintf(outputfile, "Program Exit: Unknown event type passed to io_internal_events\n");
+     dumpIOReq( "io_internal_event", curr );
      exit(1);
    }
    /*
@@ -295,6 +316,11 @@ void iosim_get_path_to_controller (int iodriverno, int ctlno, intchar *buspath, 
    char inslotno;
    char outslotno;
    int master;
+
+#ifdef DEBUG_IOSIM
+   fprintf (outputfile, "%f: iosim_get_path_to_controller, iodriverno %d, ctlno %d, buspath %p, slotpath %p\n", simtime, iodriverno, ctlno, buspath, slotpath );
+   fflush(outputfile);
+#endif
 
    depth = controller_get_depth(ctlno);
    currbus = controller_get_inbus(ctlno);
@@ -328,6 +354,11 @@ void iosim_get_path_to_device (int iodriverno, int devno, intchar *buspath, intc
    char outslotno;
    int master;
 
+#ifdef DEBUG_IOSIM
+   fprintf(outputfile, "*** %f: iosim_get_path_to_controller  iodriverno %d, devno %d, buspath %p, slotpath %p\n", simtime, iodriver, devno, buspath, slotno );
+   fflush(outputfile);
+#endif
+
    depth = device_get_depth(devno);
    currbus = device_get_inbus(devno);
    inslotno = (char) device_get_slotno(devno);
@@ -351,11 +382,13 @@ fprintf (outputfile, "devno %d, depth %d, currbus %d, inslotno %d, master %d\n",
    slotpath->byte[depth] = (inslotno & 0x0F) | (outslotno << 4);
 }
 
-static int iosim_load_map(struct lp_block *b, int64_t n) {
+
+
+
+static int iosim_load_map(struct lp_block *b, int n) {
   int c;
   int i = 0;
   char *s = 0; 
-
 
   //#include "modules/disksim_iomap_param.c"
   lp_loadparams((void *)n, b, &disksim_iomap_mod);
@@ -498,10 +531,10 @@ void io_validate_do_stats1 ()
 }
 
 
-void io_validate_do_stats2 (ioreq_event *new)
+void io_validate_do_stats2 (ioreq_event *new_event)
 {
    stat_update(tracestats2, validate_lastserv);
-   if (new->flags == WRITE) {
+   if (new_event->flags == WRITE) {
       stat_update(tracestats4, validate_lastserv);
    }
    if (strcmp(validate_buffaction, "Doub") == 0) {
@@ -547,34 +580,37 @@ void io_map_trace_request (ioreq_event *temp)
 
    for (i=0; i<tracemappings; i++) {
       if (temp->devno == tracemap[i]) {
-	 temp->devno = tracemap1[i];
-	 if (tracemap2[i]) {
-	    if (tracemap2[i] < 1) {
-	       temp->blkno *= -tracemap2[i];
-	    } else {
-	       if (temp->blkno % tracemap2[i]) {
-	          fprintf(stderr, "Small sector size disk using odd sector number: %d\n", temp->blkno);
-	          exit(1);
-	       }
-/*
-	       fprintf (outputfile, "mapping block number %d to %d\n", temp->blkno, (temp->blkno / tracemap2[i]));
-*/
-	       temp->blkno /= tracemap2[i];
-	    }
-	 }
-	 temp->bcount *= tracemap3[i];
-	 temp->blkno += tracemap4[i];
-	 if (tracestats) {
-	    stat_update(&tracestats[i], ((double) temp->tempint1 / (double) 1000));
-	    stat_update(&tracestats1[i],((double) (temp->tempint1 + temp->tempint2) / (double) 1000));
-	    stat_update(&tracestats2[i],((double) temp->tempint2 / (double) 1000));
-	    stat_update(&tracestats3[i], (double) temp->slotno);
-	    if (temp->slotno == 1) {
-	       stat_update(&tracestats4[i], ((double) temp->tempint1 / (double) 1000));
-	    }
-	 }
-	 return;
-      }
+#ifdef DEBUG_IOSIM
+		 fprintf (outputfile, "*** %f: io_map_trace_request mapping devno number %d to %d\n", simtime, temp->devno, tracemap1[i] );
+#endif
+		 temp->devno = tracemap1[i];
+		 if (tracemap2[i]) {
+			if (tracemap2[i] < 1) {
+			   temp->blkno *= -tracemap2[i];
+			} else {
+			   if (temp->blkno % tracemap2[i]) {
+				  fprintf(stderr, "Small sector size disk using odd sector number: %d\n", temp->blkno);
+				  exit(1);
+			   }
+#ifdef DEBUG_IOSIM
+			   fprintf (outputfile, "*** %f: io_map_trace_request mapping block number %d to %d\n", simtime, temp->blkno, (temp->blkno / tracemap2[i]));
+#endif
+			   temp->blkno /= tracemap2[i];
+			}
+		 }
+		 temp->bcount *= tracemap3[i];
+		 temp->blkno += tracemap4[i];
+		 if (tracestats) {
+			stat_update(&tracestats[i], ((double) temp->tempint1 / (double) 1000));
+			stat_update(&tracestats1[i],((double) (temp->tempint1 + temp->tempint2) / (double) 1000));
+			stat_update(&tracestats2[i],((double) temp->tempint2 / (double) 1000));
+			stat_update(&tracestats3[i], (double) temp->slotno);
+			if (temp->slotno == 1) {
+			   stat_update(&tracestats4[i], ((double) temp->tempint1 / (double) 1000));
+			}
+		 }
+		 return;
+	  }
    }
 /*
    fprintf(stderr, "Requested device not mapped - %x\n", temp->devno);
@@ -589,7 +625,9 @@ event * io_get_next_external_event (FILE *iotracefile)
 
    ASSERT(io_extq == NULL);
 
-   //fprintf (outputfile, "Near beginning of io_get_next_external_event\n");
+#ifdef DEBUG_IOSIM
+   fprintf (outputfile, "Entering: io_get_next_external_event\n");
+#endif
 
    temp = (ioreq_event *) getfromextraq();
 
@@ -623,19 +661,34 @@ event * io_get_next_external_event (FILE *iotracefile)
       }
       io_extq = (event *)temp;
       io_extq_type = temp->type;
+
+#ifdef DEBUG_IOSIM
+	  fprintf( outputfile, "*** %f: Set io_extq, type %d, devno %d, blkno %d, bcount %d, flags %d\n", simtime, temp->type, temp->devno, temp->blkno, temp->bcount, temp->flags );
+#endif
    }
-/*
-fprintf (outputfile, "leaving io_get_next_external_event\n");
-*/
+
+#ifdef DEBUG_IOSIM
+   fprintf (outputfile, "Exiting: io_get_next_external_event\n");
+#endif
+
    return ((event *)temp);
 }
 
 
 int io_using_external_event (event *curr)
 {
+#ifdef DEBUG_IOSIM
+   fprintf( outputfile, "*** %f: Entered: io_using_external_event\n", simtime );
+#endif
+
    if (io_extq == curr) {
       curr->type = io_extq_type;
       io_extq = NULL;
+
+#ifdef DEBUG_IOSIM
+	  fprintf( outputfile, "*** %f: io_using_external_event conversion, type %d, devno %d, blkno %d, bcount %d, flags %d\n", simtime, ((ioreq_event *)curr)->type, ((ioreq_event *)curr)->devno, ((ioreq_event *)curr)->blkno, ((ioreq_event *)curr)->bcount, ((ioreq_event *)curr)->flags );
+#endif
+
       return(1);
    }
    return(0);
@@ -730,4 +783,6 @@ void io_cleanstats()
    bus_cleanstats();
    controller_cleanstats();
 }
+
+// End of file
 

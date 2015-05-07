@@ -1204,7 +1204,7 @@ void logorg_create_table (logorg *currlogorg)
    } else {
       currlogorg->tablestripes = numdisks * parityunit / stripeunit;
    }
-   currlogorg->table = DISKSIM_malloc(currlogorg->tablestripes * numdisks * sizeof(tableentry));
+   currlogorg->table = (tableentry *)DISKSIM_malloc(currlogorg->tablestripes * numdisks * sizeof(tableentry));
    currlogorg->tablesize = currlogorg->tablestripes * stripeunit;
    currlogorg->partsperstripe = numdisks - 1;
    if (currlogorg->reduntype == PARITY_DISK) {

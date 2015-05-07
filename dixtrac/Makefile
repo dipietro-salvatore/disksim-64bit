@@ -57,15 +57,14 @@ LDFLAGS  = -L. -lm -l$(LIBNAME) -ldxtools \
 	$(LIBDISKSIM_LDFLAGS) \
 	$(MEMSMODEL_LDFLAGS) \
 	$(DISKMODEL_LDFLAGS) \
-	$(SSDMODEL_LDFLAGS) \
 	$(LIBPARAM_LDFLAGS) \
 	$(LIBDDBG_LDFLAGS) \
-	$(ST_LDFLAGS)
+	$(ST_LDFLAGS) \
+	   # in case we run on FreeBSD include appropriate libraries
 
-CFLAGS   = -Wall -g -MD -I. $(DEFINES) -I$(STHREADS) $(DMINCLUDES) \
+CFLAGS   = -Wall -g -MD -I. -DGS_TIMER -DDEBUG_MTBRC -DVERBOSE_MTBRC $(DEFINES) -I$(STHREADS) $(DMINCLUDES) \
 	$(LIBDISKSIM_CFLAGS) \
-	$(DISKMODEL_CFLAGS) $(LIBPARAM_CFLAGS) $(LIBDDBG_CFLAGS) \
-	$(SSDMODEL_CFLAGS)
+	$(DISKMODEL_CFLAGS) $(LIBPARAM_CFLAGS) $(LIBDDBG_CFLAGS) 
 
 
 all: all-redirect
@@ -94,38 +93,35 @@ TARGETS = dx_layout dx_mech dx_seeks dx_skews_simple dx_rest dx_stat \
 	dx_skew_curve \
 	dxcachectl dxreplay \
 
-# set the ostype for building sthreads
-OSTYPE = $(shell uname -s | awk '{print tolower($$1)}')
-
 all-redirect: $(STHREADS) $(TARGETS)
 
 $(PROG): $(OBJFILES) $(LIBFILE)
 	$(CC)  -o $@ $(OBJFILES) $(LDFLAGS)
 
 dx_stat: dx_stat.o libdxtools.a
-	$(CC) -o $@ $< $(LDFLAGS) -lm
+	$(CC) -o $@ $< $(LDFLAGS)
 
 dx_misc: dx_misc.o libdxtools.a
-	$(CC) -o $@ $< $(LDFLAGS) -lm
+	$(CC) -o $@ $< $(LDFLAGS) 
 
 dx_layout: dx_layout.o libdxtools.a
-	$(CC) -o $@ dx_layout.o $(LDFLAGS) -lm
+	$(CC) -o $@ dx_layout.o $(LDFLAGS)
 
 dx_mech: dx_mech.o libdxtools.a
-	$(CC) -o $@ dx_mech.o $(LDFLAGS) -lm
+	$(CC) -o $@ dx_mech.o $(LDFLAGS)
 
 dx_seeks: dx_seeks.o libdxtools.a
-	$(CC) -o $@ $< $(LDFLAGS) -lm
+	$(CC) -o $@ $< $(LDFLAGS)
 
 dx_skews_simple: dx_skews_simple.o libdxtools.a
-	$(CC) -o $@ dx_skews_simple.o $(LDFLAGS) -lm
+	$(CC) -o $@ dx_skews_simple.o $(LDFLAGS)
 
 dx_skew_curve: dx_skew_curve.o libdxtools.a
-	$(CC) -o $@ $< $(LDFLAGS) -lm
+	$(CC) -o $@ $< $(LDFLAGS)
 
 
 dx_rest: dx_rest.o libdxtools.a
-	$(CC) -o $@ dx_rest.o $(LDFLAGS) -lm
+	$(CC) -o $@ dx_rest.o $(LDFLAGS)
 
 $(LAYOUT): $(LIBFILE) $(LAYOUT).o
 #	$(CC) $(CFLAGS) $(CPPFLAGS) -c $(LAYOUT).c
@@ -148,7 +144,7 @@ lib $(LIBFILE): $(LIBOBJS)
 	$(AR) -crs $(LIBFILE) $(LIBOBJS)
 
 $(STHREADS):
-	make -C $(ST_DIR) STATIC_ONLY=yes $(OSTYPE)-debug
+	make -C $(ST_DIR) STATIC_ONLY=yes $$OSTYPE-debug
 
 .c.o:
 	$(CC) $(CFLAGS) $(CPPFLAGS) -c $<

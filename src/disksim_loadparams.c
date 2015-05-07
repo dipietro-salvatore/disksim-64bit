@@ -42,7 +42,9 @@
 #include <libparam/libparam.h>
 
 #include <diskmodel/modules/modules.h>
-#include <memsmodel/modules/modules.h>
+//#include <memsmodel/modules/modules.h>
+/*SSD:*/
+//#include <ssdmodel/modules/modules.h>
 
 #include <stdio.h>
 
@@ -57,8 +59,8 @@ static void disksim_topoloader(struct lp_topospec *ts, int len) {
 int disksim_loadparams(char *inputfile, int synthgen) {
   int rv;
   int c;
-  struct lp_tlt **tlts;
-  int tlts_len;
+  struct lp_tlt **tlts = NULL;
+  int tlts_len = 0;
 
   // register modules with libparam
   for(c = 0; c <= DISKSIM_MAX_MODULE; c++) {
@@ -71,9 +73,14 @@ int disksim_loadparams(char *inputfile, int synthgen) {
   }
 
   // memsmodel modules
-  for(c = 0; c <= MEMSMODEL_MAX_MODULE; c++) {
-    lp_register_module(memsmodel_mods[c]);
-  }  
+//  for(c = 0; c <= MEMSMODEL_MAX_MODULE; c++) {
+//    lp_register_module(memsmodel_mods[c]);
+//  }
+
+  // ssdmodel modules
+//  for(c = 0; c <= SSDMODEL_MAX_MODULE; c++) {
+//    lp_register_module(ssdmodel_mods[c]);
+//  }
 
   lp_register_topoloader(disksim_topoloader);
 
@@ -122,3 +129,6 @@ int disksim_loadparams(char *inputfile, int synthgen) {
   fclose(disksim->parfile);
   return rv;
 }
+
+// End of file
+

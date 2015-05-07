@@ -267,9 +267,6 @@ static void initialize_bands(struct dm_disk_if *d) {
       tmptime = (double) ((int) (tmptime * rotblks + 0.999999999));
       l->bands[j].trackskew = tmptime / rotblks;
     } 
-    else {
-      l->bands[j].trackskew = l->bands[j].trackskew;
-    }
 
     // zero distance seek without a head switch
     // write vs. read
@@ -288,9 +285,6 @@ static void initialize_bands(struct dm_disk_if *d) {
       tmptime = (double) ((int) (tmptime * rotblks + 0.99999999));
       l->bands[j].cylskew = tmptime / rotblks;
     } 
-    else {
-      l->bands[j].cylskew = l->bands[j].cylskew;
-    }
   }
 }
 
@@ -466,9 +460,9 @@ dm_layout_g1_initialize(struct dm_disk_if *d)
 
 // used by diskmap_initialize()
 static int 
-dm_layout_g1_compute_blksinband(struct dm_disk_if *d,
-				struct dm_layout_g1_band *b)
-     
+dm_layout_g1_compute_blksinband(
+        struct dm_disk_if *d,
+        struct dm_layout_g1_band *b)
 {
   struct dm_layout_g1 *l = (struct dm_layout_g1 *)d->layout;
   int blksinband;

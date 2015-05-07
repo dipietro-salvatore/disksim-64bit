@@ -65,7 +65,20 @@ typedef uint32_t dm_angle_t;
 // in picoseconds
 typedef int64_t dm_time_t;
 
+// dm_pbn_t is formatted in hex bits as follows: CCCCCCHHSSSSSSSS
+// cyl is 24 bits, head is 8 bits, sector is 32 bits
+//   where:
+//     C is a 4 bit cylinder address
+//     H is a 4 bit head address
+//     S is a 4 bit sector address
+
 typedef uint64_t dm_pbn_t;
+
+#if LBA_SIZE_64_BIT
+typedef uint64_t LBA_t;
+#else
+typedef uint32_t LBA_t;
+#endif
 
 
 #ifdef __cplusplus

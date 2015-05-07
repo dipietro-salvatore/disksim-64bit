@@ -186,7 +186,7 @@ typedef struct iodriver_info {
 #define iodrivers               (disksim->iodriver_info->iodrivers)
 #define numsysorgs              (disksim->iodriver_info->numsysorgs)
 #define sysorgs                 (disksim->iodriver_info->sysorgs)
-#define overallqueue            (disksim->iodriver_info->overallqueue)
+#define OVERALLQUEUE            (disksim->iodriver_info->overallqueue)
 #define drv_printsizestats      (disksim->iodriver_info->drv_printsizestats)
 #define drv_printlocalitystats  (disksim->iodriver_info->drv_printlocalitystats)
 #define drv_printblockingstats  (disksim->iodriver_info->drv_printblockingstats)

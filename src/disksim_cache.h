@@ -132,26 +132,22 @@ struct cache_if {
 			 void (**donefunc)(void *, ioreq_event *), 
 			 void *doneparam);
 
-  void(*cache_free_block_clean)(struct cache_if *cache, 
-				ioreq_event *req);
+    void(*cache_free_block_clean)(struct cache_if *cache, ioreq_event *req);
 
-  int(*cache_free_block_dirty)(struct cache_if *cache, 
-			       ioreq_event *req, 
-			       void (**donefunc)(void *, ioreq_event *), 
-			       void *doneparam);
+    int(*cache_free_block_dirty)(
+            struct cache_if *cache,
+            ioreq_event *req,
+            void (**donefunc)(void *, ioreq_event *),
+            void *doneparam);
 
-  void*(*cache_disk_access_complete)(struct cache_if *cache, 
-						   ioreq_event *curr);
+    void*(*cache_disk_access_complete)(struct cache_if *cache, ioreq_event *curr);
 
-  void (*cache_wakeup_complete)(struct cache_if *cache, 
-				void *desc);
+    void (*cache_wakeup_complete)(struct cache_if *cache, void *desc);
 
   int (*cache_sync)(struct cache_if *cache);
 
   int (*cache_get_maxreqsize)(struct cache_if *cache);
 };
-
-struct cache_if *disksim_cache_loadparams(struct lp_block *b);
 
 void cache_setcallbacks(void);
 

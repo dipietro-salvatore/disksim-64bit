@@ -31,7 +31,9 @@
 
 
 MODULE disk
-PROTO struct disk *disksim_disk_loadparams(struct lp_block *b, int *num);
+PROTO struct disk* disksim_disk_loadparams(struct lp_block *b, int *num);
+PROTO struct dm_disk_if* dm_disk_loadparams(struct lp_block *b, int *num);
+PROTO struct ioq *disksim_ioqueue_loadparams(struct lp_block *b, int printqueuestats, int printcritstats, int printidlestats, int printintarrstats, int printsizestats);
 HEADER \#include "../disksim_disk.h"
 RESTYPE struct disk *
 
@@ -267,8 +269,6 @@ read streams).
 
 PARAM Use separate write segment	I	1 
 TEST RANGE(i,0,1)
-# WTF?!
-INIT result->dedicatedwriteseg = (segment *)i;
 
 This specifies whether or not a single segment is statically designated
 for use by all write requests.  This further minimizes the impact of
@@ -276,7 +276,7 @@ write requests on the caching/prefetching of sequential read streams.
 
 PARAM Low (write) water mark		D	1 
 TEST RANGE(d,0.0,1.0)
-INIT result->writewater = d;
+INIT result->writelowwatermark = d;
 
 This specifies the fraction of segment size or request size (see below)
 corresponding to the {\it low water mark}.  When data for a write
@@ -289,7 +289,7 @@ continue the interrupted data transfer.
 
 PARAM High (read) water mark		D	1 
 TEST RANGE(d,0.0,1.0)
-INIT result->readwater = d;
+INIT result->readhighwatermark = d;
 
 This specifies the fraction of 
 segment size or request size (see below) corresponding to the 
@@ -394,7 +394,7 @@ read/write head prior to reaching the requested data (e.g.,~during
 rotational latency).
 
 
-PARAM Fast write level			I	1 
+PARAM Fast write level			I	1
 TEST RANGE(i,0,2) 
 INIT result->fastwrites = i;
 

@@ -1,7 +1,11 @@
+# hurst_r 9/10/2009
+#  manual states that Block Count must report the capcaity value that is reported to a controller
+#  Corrected the block count based on info in this model: from 2056008 to 1743672
+
 dm_disk HP_C3323A_validate_model {
    Number of data surfaces = 7,
    Number of cylinders = 2982,
-   Block count = 2056008,
+   Block count = 1743672,
    Layout Model = dm_layout_g1 {
       LBN-to-PBN mapping scheme = 0,
       Sparing scheme used = 1,

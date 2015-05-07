@@ -153,7 +153,8 @@ process *pf_disp_get_from_sleep_queue (void *chan)
 }
 
 
-process *pf_disp_get_specific_from_sleep_queue (u_int pid)
+#if 0
+process *pf_disp_get_specific_from_sleep_queue (int pid)
 {
    process *tmp = sleepqueue;
    process *prev = tmp;
@@ -178,6 +179,7 @@ process *pf_disp_get_specific_from_sleep_queue (u_int pid)
    }
    return(NULL);
 }
+#endif
 
 
 process *pf_dispatch (int cpunum)

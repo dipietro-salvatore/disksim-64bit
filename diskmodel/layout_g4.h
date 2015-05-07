@@ -30,6 +30,7 @@
 #ifndef _DM_LAYOUT_G4_H
 #define _DM_LAYOUT_G4_H
 
+
 #include "dm.h"
 
 struct pat;
@@ -86,20 +87,20 @@ struct idx_ent {
   // if this is RLE'd, the offset of the next inst relative to the
   // start of this one.  I don't think we need arunlen because
   // we never need to know the number of radians that a thing covers...
-  int len;      
-  int cyllen;
-  dm_angle_t alen; 
+  int len;          // the number of lbns in one instance of the child
+  int cyllen;       // the number of cylinders in one instance of the child
+  dm_angle_t alen;  // the total rotational angle of one instance of the child
 
 
   // Run Length -- indicates RLE if runlen > len, etc
 
-  int runlen;
-  int cylrunlen;  
+  int runlen;       // the number of lbns this entry covers
+  int cylrunlen;    // the number of cylinders this entry covers
 
 
-  g4_node_t childtype;
+  g4_node_t childtype;  // whether the child is an index node (IDX) or track pattern (TP)
   union g4_node child;
-  int head; // only for childtype==TRACK
+  int head; // only for childtype == TRACK
 };
 
 

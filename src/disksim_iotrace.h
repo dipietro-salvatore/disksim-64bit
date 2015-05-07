@@ -58,6 +58,7 @@
 #ifndef DISKSIM_IOTRACE_H
 #define DISKSIM_IOTRACE_H
 
+#include <stdio.h>
 
 /* really need to clean interface between iotrace.c and iosim.c, such */
 /* that this stuff can be local to just iotrace.c ...                 */
@@ -126,7 +127,7 @@ typedef struct iotrace_info {
 void iotrace_set_format (char *formatname);
 void iotrace_initialize_file (FILE *tracefile, int traceformat, int print_tracefile_header);
 ioreq_event * iotrace_get_ioreq_event (FILE *tracefile, int traceformat, ioreq_event *temp);
-ioreq_event * iotrace_validate_get_ioreq_event(FILE *tracefile, ioreq_event *new);
+ioreq_event * iotrace_validate_get_ioreq_event(FILE *tracefile, ioreq_event *new_event);
 void iotrace_printstats (FILE *outfile);
 
 #endif    /* DISKSIM_IOTRACE_H */

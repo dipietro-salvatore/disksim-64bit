@@ -157,6 +157,8 @@ time_second_request(int l1, int l2, struct dsstuff *ds, struct trace *t,
 
     free(r1);
     free(r2);
+    r1 = NULL;
+    r2 = NULL;
 
     //    printf("%d -> %d : %f\n", l1, l2, ds->compl[1] - ds->compl[0]);
 
@@ -354,6 +356,8 @@ find_slope(double *d1, double *d2, int n, double *aa,
 
   free(err);
   free(x);
+  err = NULL;
+  x = NULL;
 
   return b;
 }
@@ -537,6 +541,11 @@ do_idx_ent(struct dm_disk_if *d,        // diskmodel
   free(li);
   free(tracetimes);
   free(times);
+
+  li = NULL;
+  tracetimes = NULL;
+  times = NULL;
+
   return;
 }
 
@@ -688,9 +697,11 @@ int main(int argc, char **argv) {
   }
 
   free(ds);
+  ds = NULL;
 
   fclose(t->fp);
   free(t);
+  t = NULL;
 
   return 0;
 }

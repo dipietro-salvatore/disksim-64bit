@@ -110,8 +110,80 @@
 
 #include "modules/modules.h"
 
-/* Currently, controllers can not communicate via ownership-type buses */
 
+#ifdef DEBUG_CONTROLLER
+
+char buff[40];
+char * debug_decode_controller_type( int ctlrtype )
+{
+    static char *ctlrTypeMsgs[ ] = { "UNKNOWN", "PASSTHRU", "53C700", "SMART" };
+    int index = 0;
+
+    switch( ctlrtype )
+    {
+      case CTLR_PASSTHRU:
+      case CTLR_BASED_ON_53C700:
+      case CTLR_SMART:
+        index = ctlrtype;
+        break;
+    }
+    sprintf( buff, "%d(%s)", ctlrtype, ctlrTypeMsgs[index] );
+    return buff;
+}
+
+
+char * getCauseString( int cause )
+{
+    static char *causeMsgs[ ] = { "UNKNOWN", "COMPLETION", "RECONNECT", "DISCONNECT", "READY_TO_TRANSFER" };
+    int index = 0;
+
+    switch( cause )
+    {
+      case COMPLETION:
+      case RECONNECT:
+      case DISCONNECT:
+      case READY_TO_TRANSFER:
+        index = -cause;
+        break;
+    }
+    sprintf( buff, "%d(%s)", cause, causeMsgs[index] );
+    return buff;
+}
+
+
+void
+dump_ioreq_event(ioreq_event *event, char *msg )
+{
+    ioreq_event *myEvent = event;
+
+    while( NULL != myEvent )
+    {
+        fprintf (outputfile, "\n*** %f: dump_ioreq_event (%s): %p", simtime, msg, myEvent );
+        fprintf (outputfile, "\n*** %f:    next        : %p", simtime, myEvent->next );
+        fprintf (outputfile, "\n*** %f:    prev        : %p", simtime, myEvent->prev );
+        fprintf (outputfile, "\n*** %f:    batch_next  : %p", simtime, myEvent->batch_next );
+        fprintf (outputfile, "\n*** %f:    batch_prev  : %p", simtime, myEvent->batch_prev );
+        fprintf (outputfile, "\n*** %f:    time        : %f", simtime, myEvent->time );
+        fprintf (outputfile, "\n*** %f:    type        : %d", simtime, myEvent->type );
+        fprintf (outputfile, "\n*** %f:    cause       : %d", simtime, myEvent->cause );
+        fprintf (outputfile, "\n*** %f:    busno       : %u", simtime, myEvent->busno );
+        fprintf (outputfile, "\n*** %f:    devno       : %d", simtime, myEvent->devno );
+        fprintf (outputfile, "\n*** %f:    blkno       : %d", simtime, myEvent->blkno );
+        fprintf (outputfile, "\n*** %f:    bcount      : %d", simtime, myEvent->bcount );
+        fprintf (outputfile, "\n*** %f:    flags       : %X\n\n", simtime, myEvent->flags );
+        fflush( outputfile );
+
+        if( NULL != myEvent->next )
+            myEvent = myEvent->next;
+        else if( NULL != myEvent->batch_next )
+            myEvent = myEvent->batch_next;
+        else
+            myEvent = NULL;
+    }
+}
+#endif
+
+/* Currently, controllers can not communicate via ownership-type buses */
 
 INLINE controller * getctlr (int ctlrno)
 {
@@ -148,6 +220,11 @@ int controller_get_downward_busno (controller *currctlr, ioreq_event *curr, int 
    intchar slotno;
    int depth;
 
+#ifdef DEBUG_CONTROLLER
+     fprintf (outputfile, "*** %f: controller_get_downward_busno  ctlno %d, busno %d, slotno %d, type %s (%d), cause %s, blkno %d, bcount %d, flags 0x%x, addr %p\n", simtime, currctlr->ctlno, curr->busno, curr->slotno, getEventString( curr->type ), curr->type, getCauseString( curr->cause), curr->blkno, curr->bcount, curr->flags, curr);
+     fflush( outputfile );
+#endif
+
    busno.value = curr->busno;
    slotno.value = curr->slotno;
    depth = currctlr->depth[0];
@@ -165,6 +242,11 @@ static int controller_get_upward_busno (controller *currctlr, ioreq_event *curr,
    intchar busno;
    intchar slotno;
    int depth;
+
+#ifdef DEBUG_CONTROLLER
+     fprintf (outputfile, "*** %f: controller_get_upward_busno  ctlno %d, busno %d, slotno %d, type %d, blkno %d, bcount %d, flags 0x%x, addr %p\n", simtime, currctlr->ctlno, curr->busno, curr->slotno, curr->type, curr->blkno, curr->bcount, curr->flags, curr);
+     fflush( outputfile );
+#endif
 
    busno.value = curr->busno;
    slotno.value = curr->slotno;
@@ -185,14 +267,22 @@ void controller_send_event_down_path (controller *currctlr, ioreq_event *curr, d
    int busno;
    int slotno;
 
+#ifdef DEBUG_CONTROLLER
+     fprintf (outputfile, "*** %f: controller_send_event_down_path - ctlno %d, , type %d, cause %s, blkno %d, bcount %d, flags 0x%x, addr %p\n", simtime, currctlr->ctlno, curr->type, getCauseString( curr->cause ), curr->blkno, curr->bcount, curr->flags, curr);
+     fflush( outputfile );
+#endif
+
    busno = controller_get_downward_busno(currctlr, curr, NULL);
    slotno = controller_get_outslot(currctlr->ctlno, busno);
    curr->next = currctlr->buswait;
    currctlr->buswait = curr;
    curr->tempint1 = busno;
-   /*
-     fprintf (outputfile, "Inside send_event_down_path - ctlno %d, busno %d, slotno %d, blkno %d, addr %p\n", currctlr->ctlno, busno, slotno, curr->blkno, curr);
-   */
+
+#ifdef DEBUG_CONTROLLER
+     fprintf (outputfile, "*** %f: controller_send_event_down_path - ctlno %d, busno %d, slotno %d, type %d, blkno %d, bcount %d, flags 0x%x, addr %p\n", simtime, currctlr->ctlno, busno, slotno, curr->type, curr->blkno, curr->bcount, curr->flags, curr);
+     fflush( outputfile );
+#endif
+
    curr->time = delay * currctlr->timescale;
    if (currctlr->outbusowned == -1) {
       if (bus_ownership_get(busno, slotno, curr) == FALSE) {
@@ -222,9 +312,10 @@ void controller_send_event_up_path (controller *currctlr, ioreq_event *curr, dou
    busno = controller_get_upward_busno(currctlr, curr, NULL);
    slotno = currctlr->slotno[0];
 
-   /*
-   fprintf (outputfile, "Inside send_event_down_path - ctlno %d, busno %d, slotno %d, blkno %d, addr %x\n", currctlr->ctlno, busno, slotno, curr->blkno, curr);
-   */
+#ifdef DEBUG_CONTROLLER
+   fprintf (outputfile, "*** %f: controller_send_event_up_path - ctlno %d, busno %d, slotno %d, type %d, blkno %d, bcount %d, flags 0x%x, addr %p\n", simtime, currctlr->ctlno, busno, slotno, curr->type, curr->blkno, curr->bcount, curr->flags, curr);
+   fflush( outputfile );
+#endif
 
    curr->next = currctlr->buswait;
    currctlr->buswait = curr;
@@ -255,9 +346,12 @@ int controller_get_data_transfered(int ctlno, int devno)
    int tmpblks;
    controller *currctlr = getctlr(ctlno);
    ioreq_event *tmp = currctlr->datatransfers;
-/*
-fprintf (outputfile, "Entered controller_get_data_transfered - ctlno %d, devno %d\n", currctlr->ctlno, devno);
-*/
+
+#ifdef DEBUG_CONTROLLER
+   fprintf (outputfile, "*** %f: Entered controller_get_data_transfered - ctlno %d, devno %d\n", simtime, currctlr->ctlno, devno);
+   fflush( outputfile );
+#endif
+
    while (tmp) {
       if (tmp->devno == devno) {
          tmptime = ((ioreq_event *) tmp->tempptr1)->time;
@@ -274,6 +368,12 @@ fprintf (outputfile, "Entered controller_get_data_transfered - ctlno %d, devno %
 
 static void controller_disown_busno (controller *currctlr, int busno)
 {
+
+#ifdef DEBUG_CONTROLLER
+   fprintf (outputfile, "*** %f: controller_disown_busno - ctlno %d, busno %d\n", simtime, currctlr->ctlno, busno );
+   fflush( outputfile );
+#endif
+
    ASSERT1((busno == currctlr->inbusowned) || (busno == currctlr->outbusowned), "busno", busno);
    if (currctlr->inbusowned == busno) {
       bus_ownership_release(currctlr->inbusowned);
@@ -288,9 +388,12 @@ void controller_bus_ownership_grant (int ctlno, ioreq_event *curr, int busno, do
 {
    controller *currctlr = getctlr(ctlno);
    ioreq_event *tmp;
-/*
-fprintf (outputfile, "Ownership granted for bus %d - ctlno %d\n", busno, ctlno);
-*/
+
+#ifdef DEBUG_CONTROLLER
+   fprintf (outputfile, "*** %f: controller_bus_ownership_grant - ctlno %d, busno %d, arbdelay %f, type %d, cause %s, blkno %d, bcount %d, flags 0x%x, addr %p\n", simtime, currctlr->ctlno, busno, arbdelay, curr->type, getCauseString( curr->cause), curr->blkno, curr->bcount, curr->flags, curr);
+   fflush( outputfile );
+#endif
+
    tmp = currctlr->buswait;
    while ((tmp) && (tmp != curr)) {
       tmp = tmp->next;
@@ -300,14 +403,14 @@ fprintf (outputfile, "Ownership granted for bus %d - ctlno %d\n", busno, ctlno);
    switch (tmp->type) {
       case IO_ACCESS_ARRIVE:
       case IO_INTERRUPT_COMPLETE:
-                                  currctlr->outbusowned = busno;
-                                  break;
+         currctlr->outbusowned = busno;
+         break;
       case IO_INTERRUPT_ARRIVE:
-                                  currctlr->inbusowned = busno;
-                                  break;
+         currctlr->inbusowned = busno;
+         break;
       default:
-               fprintf(stderr, "Unknown event type at controller_bus_ownership_grant - %d\n", tmp->type);
-               exit(1);
+         fprintf(stderr, "Unknown event type at controller_bus_ownership_grant - %d\n", tmp->type);
+         exit(1);
    }
    currctlr->waitingforbus += arbdelay;
    bus_delay(busno, CONTROLLER, currctlr->ctlno, tmp->time, tmp);
@@ -322,6 +425,11 @@ void controller_remove_type_from_buswait (controller *currctlr, int type)
    ioreq_event *tmp;
    ioreq_event *trv;
    int busno;
+
+#ifdef DEBUG_CONTROLLER
+   fprintf (outputfile, "*** %f: controller_remove_type_from_buswait - ctlno %d, type %d\n", simtime, currctlr->ctlno, type );
+   fflush( outputfile );
+#endif
 
    ASSERT(currctlr->buswait != NULL);
    if (currctlr->buswait->type == type) {
@@ -354,6 +462,13 @@ void controller_bus_delay_complete(int ctlno, ioreq_event *curr, int busno)
    int slotno;
    int buswaitdir;
 
+#ifdef DEBUG_CONTROLLER
+   fprintf (outputfile, "*** %f: controller_bus_delay_complete  Entering\n", simtime );
+   dump_ioreq_event( curr, "controller_bus_delay_complete::curr" );
+   dump_ioreq_event( currctlr->buswait, "controller_bus_delay_complete::currctlr->buswait" );
+#endif
+
+   // search for the ioreq_event in the buswait list
    if (curr == currctlr->buswait) {
       currctlr->buswait = curr->next;
    } else {
@@ -369,6 +484,12 @@ fprintf (outputfile, "Controller_bus_delay_complete - ctlno %d, busno %d, blkno 
 */
    curr->next = NULL;
    curr->time = 0.0;
+
+#ifdef DEBUG_CONTROLLER
+   fprintf (outputfile, "*** %f: Inside controller_bus_delay_complete: ctlno = %d, type = %d, cause = %d, devno %d, blkno %d, bcount %d, flags 0x%x\n", simtime, ctlno, curr->type, curr->cause, curr->devno, curr->blkno, curr->bcount, curr->flags );
+   fflush( outputfile );
+#endif
+
    if (busno == controller_get_upward_busno(currctlr, curr, &slotno)) {
       buswaitdir = UP;
       if (busno == -1) {
@@ -390,6 +511,11 @@ fprintf (outputfile, "Controller_bus_delay_complete - ctlno %d, busno %d, blkno 
       fprintf(stderr, "Non-matching busno for request in controller_bus_delay_complete: busno %d\n", busno);
       exit(1);
    }
+
+#ifdef DEBUG_CONTROLLER
+   fprintf (outputfile, "*** %f: controller_bus_delay_complete  Exiting\n", simtime );
+   dump_ioreq_event( currctlr->buswait, "controller_bus_delay_complete::currctlr->buswait" );
+#endif
 }
 
 
@@ -397,10 +523,10 @@ void controller_event_arrive (int ctlno, ioreq_event *curr)
 {
    controller *currctlr = getctlr(ctlno);
 
-   /*
-   fprintf (outputfile, "Inside controller_event_arrive: ctlno = %d, type = %d, cause = %d\n", ctlno, curr->type, curr->cause);
-   fprintf (outputfile, "Info continued: devno %d, blkno %d\n", curr->devno, curr->blkno);
-   */
+#ifdef DEBUG_CONTROLLER
+   fprintf (outputfile, "*** %f: controller_event_arrive: ctlno %d, ctlrtype %s, type %d, cause %s, devno %d, blkno %d, bcount %d, flags %x\n", simtime, ctlno, debug_decode_controller_type( currctlr->type ), curr->type, getCauseString(curr->cause), curr->devno, curr->blkno, curr->bcount, curr->flags);
+   fflush( outputfile );
+#endif
 
    switch (currctlr->type) {
       
@@ -420,9 +546,11 @@ void controller_event_arrive (int ctlno, ioreq_event *curr)
                fprintf(stderr, "Unknown controller type in controller_interrupt_arrive: %d\n", currctlr->type);
                exit(1);
    }
+#ifdef DEBUG_CONTROLLER
+   fprintf (outputfile, "*** %f: controller_event_arrive: Exiting\n", simtime );
+   fflush( outputfile );
+#endif
 }
-
-
 
 
 int disksim_ctlr_stats_loadparams(struct lp_block *b) {
@@ -430,9 +558,8 @@ int disksim_ctlr_stats_loadparams(struct lp_block *b) {
   ctlrinfo_t *ctlrinfo;
 
   if(disksim->ctlrinfo == NULL) {
-    disksim->ctlrinfo = malloc(sizeof(ctlrinfo_t));
+    disksim->ctlrinfo = (ctlrinfo_t *)calloc(1, sizeof(ctlrinfo_t));
     if(!disksim->ctlrinfo) return 0;
-    bzero((char *)disksim->ctlrinfo, sizeof(ctlrinfo_t));
   }
   ctlrinfo = disksim->ctlrinfo;
 
@@ -446,7 +573,7 @@ int disksim_ctlr_stats_loadparams(struct lp_block *b) {
 
 
 controller *controller_copy(controller *orig) {
-  controller *result = malloc(sizeof(controller));
+  controller *result = (controller *)calloc(1, sizeof(controller));
   if(!result) return 0;
   memcpy(result, orig, sizeof(controller));
   result->cache = orig->cache->cache_copy(orig->cache);
@@ -473,7 +600,7 @@ struct controller *disksim_ctlr_loadparams(struct lp_block *b)
 
   /* initialize top-level controller info struct if necessary */
   if (disksim->ctlrinfo == NULL) {
-    disksim->ctlrinfo = DISKSIM_malloc (sizeof(ctlrinfo_t));
+    disksim->ctlrinfo = (struct ctlrinfo *)DISKSIM_malloc (sizeof(ctlrinfo_t));
     bzero ((char *)disksim->ctlrinfo, sizeof(ctlrinfo_t));
   }
 
@@ -488,12 +615,19 @@ struct controller *disksim_ctlr_loadparams(struct lp_block *b)
   {
     int newlen = c ? 2*c : 2;
     int zerooff = (newlen == 2) ? 0 : c;
-    int zerolen = ((newlen == 2) ? 2 : (newlen / 2)) * sizeof(int *);
+    int zerolen = ((newlen == 2) ? 2 : (newlen / 2));
     
-    disksim->ctlrinfo->controllers = realloc(disksim->ctlrinfo->controllers,
-					     newlen * sizeof(int *));
-    
-    bzero(disksim->ctlrinfo->controllers + zerooff, zerolen);
+    if ( zerooff == 0 )
+    {
+      disksim->ctlrinfo->controllers = (controller **)calloc(newlen, sizeof(void*));
+    }
+    else
+    {
+      disksim->ctlrinfo->controllers = (controller **)realloc(disksim->ctlrinfo->controllers,
+					       newlen * sizeof(int *));
+      bzero(&(disksim->ctlrinfo->controllers[zerooff]), zerolen*sizeof(int*));
+    }
+
     disksim->ctlrinfo->ctlrs_len = newlen;
   }
 
@@ -502,15 +636,14 @@ struct controller *disksim_ctlr_loadparams(struct lp_block *b)
   disksim->ctlrinfo->numcontrollers++;
 
   /* allocate a new controller struct */
-  result = malloc(sizeof(controller));
+  result = (controller *)calloc(1, sizeof(controller));
   if(!result) return 0;
-  bzero(result, sizeof(controller));
 
   disksim->ctlrinfo->controllers[c] = result;
   bzero(result, sizeof(controller));
 
   result->name = strdup(b->name);
-    
+
   //  #include "modules/disksim_ctlr_param.c"
   lp_loadparams(result, b, &disksim_ctlr_mod);
 
@@ -546,9 +679,6 @@ struct controller *disksim_ctlr_loadparams(struct lp_block *b)
      upper-level component */
   result->ovrhd_reset = 0.5;
 
-
-
-  
   return result;
 }
 
@@ -800,8 +930,7 @@ int load_ctlr_topo(struct lp_topospec *t, int *inbus) {
   if(!ctlr->outbuses) {
     ctlr->numoutbuses = 0;
     slots = t->l->values_len;
-    ctlr->outbuses = malloc(slots * sizeof(int));
-    bzero(ctlr->outbuses, slots * sizeof(int));
+    ctlr->outbuses = (int *)calloc(1, slots * sizeof(int));
   }
 
   for(c = 0; c < t->l->values_len; c++) {

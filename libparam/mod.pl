@@ -410,7 +410,7 @@ foreach $i (@depFns) {
     if($j > 0) {
 	print CODE ",\n";
     }
-    print CODE "(void*)$i";
+    print CODE "$i";
     $j++;
 }
 print CODE "\n};\n\n";

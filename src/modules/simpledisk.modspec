@@ -34,6 +34,7 @@ MODULE simpledisk
 HEADER \#include "../disksim_simpledisk.h"
 RESTYPE struct simpledisk *
 PROTO struct simpledisk *disksim_simpledisk_loadparams(struct lp_block *b);
+PROTO struct ioq *disksim_ioqueue_loadparams(struct lp_block *b, int printqueuestats, int printcritstats, int printidlestats, int printintarrstats, int printsizestats);
 
 PARAM Scheduler					BLOCK	1 
 TEST result->queue = (struct ioq *)disksim_ioqueue_loadparams(blk, device_printqueuestats, device_printcritstats, device_printidlestats, device_printintarrstats, device_printsizestats)

@@ -33,6 +33,11 @@
 #include "dm.h"
 
 // cyl is 24 bits, head is 8, sect is 32
+// dm_pbn_t is formatted in hex bits as follows: CCCCCCHHSSSSSSSS
+//   where:
+//     C is a 4 bit cylinder address
+//     H is a 4 bit head address
+//     S is a 4 bit sector address
 
 // convert the internal format to a struct dm_pbn
 int dm_to_pbn(dm_pbn_t i, struct dm_pbn *result)

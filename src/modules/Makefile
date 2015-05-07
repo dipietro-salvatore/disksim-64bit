@@ -32,6 +32,7 @@
 
 include .paths
 
+CC = g++ -fpermissive -Wall -Wno-unused -Wno-write-strings -MD
 CFLAGS=-g $(LIBDDBG_CFLAGS) $(LIBPARAM_CFLAGS) $(DISKMODEL_CFLAGS) -I..
 
 LIBPARAM=$(LIBPARAM_PREFIX)
@@ -67,6 +68,6 @@ modules.h: $(PARAM_HEADERS)
 	$(LIBPARAM)/make_modules_h.pl $(PACKAGE) *.modspec > modules.h
 
 clean:
-	rm -f *.h *.c *.tex *~ *.o
+	rm -f *.h *.c *.tex *~ *.o *.d
 
 distclean: clean

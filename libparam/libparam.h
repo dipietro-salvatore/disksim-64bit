@@ -167,8 +167,7 @@ struct lp_tlt {
 };
 
 
-
-typedef int*(*lp_modloader_t)(struct lp_block *, int);
+typedef void*(*lp_modloader_t)(struct lp_block *, int*);
 
 typedef void(*lp_paramloader_int)(void *, int);
 typedef void(*lp_paramloader_double)(void *, double);
@@ -278,9 +277,8 @@ extern char **lp_searchpath;
 extern int lp_searchpath_len;
 extern int lp_lineno;
 
-
 int *
-lp_override_inst(struct lp_block *b, 
+lp_override_inst(const struct lp_block *b, 
 	      char *cname, 
 	      lp_modloader_t loader,
 	      char **overrides,

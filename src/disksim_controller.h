@@ -127,5 +127,9 @@ int   controller_get_data_transfered (int ctlno, int devno);
 void  controller_bus_delay_complete (int ctlno, ioreq_event *curr, int busno);
 void  controller_bus_ownership_grant (int ctlno, ioreq_event *curr, int busno, double arbdelay);
 
+char * debug_decode_controller_type( int ctlrtype );
+char * getCauseString( int cause );
+void dump_ioreq_event(ioreq_event *event, char *msg );
+
 #endif    /* DISKSIM_CONTROLLER_H */
 

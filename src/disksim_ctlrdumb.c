@@ -114,6 +114,11 @@ static void controller_53c700_reset_complete (controller *currctlr, ioreq_event 
 {
    ioreq_event *tmp;
 
+#ifdef DEBUG_CTLRDUMB
+    fprintf (outputfile, "*** %f: controller_53c700_reset_complete - devno %d, blkno %d, bcount %d, flags %X\n", simtime, curr->devno, curr->blkno, curr->bcount, curr->flags );
+    fflush( outputfile);
+#endif
+
    switch (currctlr->state) {
       case COMPLETION_PENDING:
       case DISCONNECT_PENDING:
@@ -140,7 +145,12 @@ static void controller_53c700_reconnection_complete (controller *currctlr, ioreq
 {
    int read = curr->flags & READ;
 
-   ASSERT(currctlr->state == RECONNECTING);
+#ifdef DEBUG_CTLRDUMB
+    fprintf (outputfile, "*** %f: controller_53c700_reconnection_complete - devno %d, blkno %d\n, bcount %d, flags 0x%x\n", simtime, curr->devno, curr->blkno, curr->bcount, curr->flags );
+    fflush( outputfile );
+#endif
+
+    ASSERT(currctlr->state == RECONNECTING);
    currctlr->outbusowned = controller_get_downward_busno(currctlr, curr, NULL);
    controller_send_event_down_path(currctlr, curr, currctlr->ovrhd_disk_reconnect);
    currctlr->outbusowned = -1;
@@ -150,7 +160,12 @@ static void controller_53c700_reconnection_complete (controller *currctlr, ioreq
 
 static void controller_53c700_reconnect_to_transfer (controller *currctlr, ioreq_event *curr)
 {
-   switch (currctlr->state) {
+#ifdef DEBUG_CTLRDUMB
+    fprintf (outputfile, "*** %f: controller_53c700_reconnect_to_transfer - devno %d, blkno %d\n, bcount %d, flags 0x%x\n", simtime, curr->devno, curr->blkno, curr->bcount, curr->flags );
+    fflush( outputfile );
+#endif
+
+    switch (currctlr->state) {
 
       case COMPLETION_PENDING:
       case DISCONNECT_PENDING:
@@ -177,6 +192,11 @@ static void controller_53c700_request_complete (controller *currctlr, ioreq_even
 {
    ioreq_event *ret;
 
+#ifdef DEBUG_CTLRDUMB
+    fprintf (outputfile, "*** %f: controller_53c700_request_complete - devno %d, blkno %d\n, bcount %d, flags 0x%x\n", simtime, curr->devno, curr->blkno, curr->bcount, curr->flags );
+	fflush( outputfile );
+#endif
+
    switch (currctlr->state) {
       case READ_DATA_TRANSFER:
       case WRITE_DATA_TRANSFER:
@@ -199,6 +219,10 @@ static void controller_53c700_disconnect (controller *currctlr, ioreq_event *cur
 {
    ioreq_event *ret;
 
+#ifdef DEBUG_CTLRDUMB
+    fprintf (outputfile, "*** %f: controller_53c700_disconnect - devno %d, blkno %d\n, bcount %d, flags 0x%x\n", simtime, curr->devno, curr->blkno, curr->bcount, curr->flags );
+#endif
+
    switch (currctlr->state) {
       case READ_DATA_TRANSFER:
       case WRITE_DATA_TRANSFER:
@@ -220,7 +244,12 @@ static void controller_53c700_disconnect (controller *currctlr, ioreq_event *cur
 
 static void controller_53c700_ready_to_transfer (controller *currctlr, ioreq_event *curr)
 {
-   ASSERT(currctlr->state == REQUEST_PENDING);
+#ifdef DEBUG_CTLRDUMB
+    fprintf (outputfile, "*** %f: controller_53c700_ready_to_transfer - devno %d, blkno %d\n, bcount %d, flags 0x%x\n", simtime, curr->devno, curr->blkno, curr->bcount, curr->flags );
+    fflush( outputfile );
+#endif
+
+    ASSERT(currctlr->state == REQUEST_PENDING);
    currctlr->state = (curr->flags & READ) ? READ_DATA_TRANSFER : WRITE_DATA_TRANSFER;
    curr->type = IO_INTERRUPT_COMPLETE;
    curr->cause = RECONNECT;
@@ -233,10 +262,12 @@ static void controller_53c700_ready_to_transfer (controller *currctlr, ioreq_eve
 
 static void controller_53c700_request_arrive (controller *currctlr, ioreq_event *curr)
 {
-/*
-fprintf (outputfile, "Entered 53c700_request_arrive - devno %d, blkno %d\n", curr->devno, curr->blkno);
-*/
-   switch (currctlr->state) {
+#ifdef DEBUG_CTLRDUMB
+    fprintf (outputfile, "*** %f: controller_53c700_request_arrive - devno %d, blkno %d\n, bcount %d, flags 0x%x\n", simtime, curr->devno, curr->blkno, curr->bcount, curr->flags );
+    fflush(outputfile );
+#endif
+
+    switch (currctlr->state) {
       case FREE:
 		           break;
       case RECONNECTING:
@@ -253,7 +284,12 @@ fprintf (outputfile, "Entered 53c700_request_arrive - devno %d, blkno %d\n", cur
 
 static void controller_53c700_interrupt_arrive (controller *currctlr, ioreq_event *curr)
 {
-   switch (curr->cause) {
+#ifdef DEBUG_CTLRDUMB
+    dumpIOReq( "controller_53c700_interrupt_arrive", curr );
+    fflush(outputfile );
+#endif
+
+    switch (curr->cause) {
 
       case COMPLETION:
 	 controller_53c700_request_complete(currctlr, curr);
@@ -280,7 +316,12 @@ static void controller_53c700_interrupt_arrive (controller *currctlr, ioreq_even
 
 static void controller_53c700_interrupt_complete (controller *currctlr, ioreq_event *curr)
 {
-   switch (curr->cause) {
+#ifdef DEBUG_CTLRDUMB
+    fprintf (outputfile, "*** %f: controller_53c700_interrupt_complete - devno %d, blkno %d\n, bcount %d, flags 0x%x\n", simtime, curr->devno, curr->blkno, curr->bcount, curr->flags );
+    fflush(outputfile );
+#endif
+
+    switch (curr->cause) {
 
       case COMPLETION:
       case DISCONNECT:
@@ -301,9 +342,15 @@ static void controller_53c700_interrupt_complete (controller *currctlr, ioreq_ev
 static void controller_53c700_data_transfer (controller *currctlr, ioreq_event *curr)
 {
    ioreq_event *tmp;
+
+#ifdef DEBUG_CTLRDUMB
+    fprintf (outputfile, "*** %f: controller_53c700_data_transfer - devno %d, blkno %d\n, bcount %d, flags 0x%x\n", simtime, curr->devno, curr->blkno, curr->bcount, curr->flags );
+    fflush(outputfile );
 /*
 fprintf (outputfile, "Entered controller_53c700_data_transfer - ctlno %d, devno %d, blkno %d, bcount %d\n", ctlno, curr->devno, curr->blkno, curr->bcount);
 */
+#endif
+
    if (curr->type == DEVICE_DATA_TRANSFER_COMPLETE) {
       curr->time = max(device_get_blktranstime(curr), currctlr->blktranstime);
    } else if (curr->type == CONTROLLER_DATA_TRANSFER_COMPLETE) {
@@ -335,6 +382,11 @@ static void controller_53c700_data_transfer_complete (controller *currctlr, iore
 {
    ioreq_event *tmp;
 
+#ifdef DEBUG_CTLRDUMB
+    fprintf (outputfile, "*** %f: controller_53c700_data_transfer_complete - devno %d, blkno %d\n, bcount %d, flags 0x%x\n", simtime, curr->devno, curr->blkno, curr->bcount, curr->flags );
+    fflush(outputfile );
+#endif
+
    tmp = (ioreq_event *) curr->tempptr1;
    tmp->bcount -= curr->bcount;
    addtoextraq((event *) curr);
@@ -363,6 +415,11 @@ void controller_53c700_event_arrive (controller *currctlr, ioreq_event *curr)
 {
    int busno;
    int slotno;
+
+#ifdef DEBUG_CTLRDUMB
+    dumpIOReq("controller_53c700_event_arrive", curr );
+    fflush(outputfile );
+#endif
 
    switch (curr->type) {
 
@@ -402,6 +459,11 @@ void controller_passthru_event_arrive (controller *currctlr, ioreq_event *curr)
 {
    int busno;
    int slotno;
+
+#ifdef DEBUG_CTLRDUMB
+    dumpIOReq("controller_passthru_event_arrive", curr );
+    fflush(outputfile );
+#endif
 
    switch (curr->type) {
 
@@ -443,10 +505,14 @@ fprintf (outputfile, "Following passthru_event path, and passing access down\n")
 
 void controller_passthru_printstats (controller *currctlr, char *prefix)
 {
+         fprintf(outputfile, "NCR 53C700 controller statistics not implemented\n" );
 }
 
 
 void controller_53c700_printstats (controller *currctlr, char *prefix)
 {
+         fprintf(outputfile, "NCR 53C700 controller statistics not implemented\n" );
 }
+
+// End of file
 

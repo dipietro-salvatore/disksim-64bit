@@ -29,8 +29,6 @@
  *
  */
 
-
-
 /*
  * DiskSim Storage Subsystem Simulation Environment (Version 2.0)
  * Revision Authors: Greg Ganger

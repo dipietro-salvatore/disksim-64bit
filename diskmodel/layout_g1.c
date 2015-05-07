@@ -136,14 +136,16 @@ find_band_lbn(struct dm_layout_g1 *l, int lbn)
   struct dm_layout_g1_band *b = &l->bands[0];
   int bandstart = 0;
   int bandno = 0;
+  int templbn = lbn;
 
-  while((lbn >= b->blksinband) || (lbn < 0)) {
+  while((templbn >= b->blksinband) || (templbn < 0)) {
     bandstart += b->blksinband;
-    lbn -= b->blksinband;
+    templbn -= b->blksinband;
     bandno++;
     b = &l->bands[bandno];
+    //fprintf( stderr, "\nlbn %d, templbn %d, num %d, startcyl %d, endcyl %d, blkspertrack %d, blksinband %d, deadspace %d, bands_len %d, bandno %d", lbn, templbn, b->num, b->startcyl, b->endcyl, b->blkspertrack, b->blksinband, b->deadspace,  l->bands_len, bandno );
     ddbg_assert(bandno < l->bands_len);
-    ddbg_assert(lbn >= 0);
+    ddbg_assert(templbn >= 0);
   }
   
   return b;
@@ -181,7 +183,7 @@ g1_st_pbn(struct dm_disk_if *d, struct dm_pbn *p) {
   struct dm_layout_g1_band *b;
 
   while(!(b = find_band_pbn(l, &p2)) && p2.cyl >= 0) { p2.cyl--; }
-  ddbg_assert(b);
+  ddbg_assert_ptr(b);
 
 
   return b->blkspertrack;
@@ -489,7 +491,7 @@ g1_ptol_nosparing(struct dm_disk_if *d,
   p = &pbn;
 
 
-  ddbg_assert(b);
+  ddbg_assert_ptr(b);
   ddbg_assert(p->cyl >= 0);
   ddbg_assert(p->cyl >= b->startcyl);
   ddbg_assert(p->cyl < d->dm_cyls);
@@ -528,7 +530,7 @@ g1_ptol_sectpertrackspare(struct dm_disk_if *d,
   struct dm_pbn pbn = *p;
   p = &pbn;
 
-  ddbg_assert(b);
+  ddbg_assert_ptr(b);
   ddbg_assert(p->cyl >= 0);
   ddbg_assert(p->cyl >= b->startcyl);
   ddbg_assert(p->cyl < d->dm_cyls);
@@ -699,7 +701,7 @@ g1_ptol_sectperrangespare(struct dm_disk_if *d,
   p = &pbn;
 
 
-  ddbg_assert(b);
+  ddbg_assert_ptr(b);
   ddbg_assert(p->cyl >= 0);
   ddbg_assert(p->cyl >= b->startcyl);
   ddbg_assert(p->cyl < d->dm_cyls);
@@ -776,7 +778,7 @@ g1_ptol_sectperzonespare(struct dm_disk_if *d,
   p = &pbn;
 
 
-  ddbg_assert(b);
+  ddbg_assert_ptr(b);
   ddbg_assert(p->cyl >= 0);
   ddbg_assert(p->cyl >= b->startcyl);
   ddbg_assert(p->cyl < d->dm_cyls);
@@ -848,7 +850,7 @@ g1_ptol_trackspare(struct dm_disk_if *d,
   struct dm_pbn pbn = *p;
   p = &pbn;
 
-  ddbg_assert(b);
+  ddbg_assert_ptr(b);
   ddbg_assert(p->cyl >= 0);
   ddbg_assert(p->cyl >= b->startcyl);
   ddbg_assert(p->cyl < d->dm_cyls);
@@ -1935,10 +1937,9 @@ g1_get_zone(struct dm_disk_if *d,
 	    struct dm_layout_zone *result)
 {
   struct dm_layout_g1 *l = (struct dm_layout_g1 *)d->layout;
-  struct dm_layout_g1_band *z = calloc(sizeof(struct dm_layout_g1_band), 1);
+  struct dm_layout_g1_band *z = (struct dm_layout_g1_band *)0;
 
-  // check args  
-  if(z == NULL) { return -1; }
+  // check args
   if(n < 0 || n >= l->bands_len) { return -1; }
 
   z = &l->bands[n];

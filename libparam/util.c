@@ -38,13 +38,9 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
-
-#ifndef WIN32
 #include <unistd.h>
-#else
-#include <io.h>
-#endif
 
+#include <unistd.h>
 #include <fcntl.h>
 
 #include <libgen.h>
@@ -52,7 +48,11 @@
 #include "libparam.h"
 #include "bitvector.h"
 
+void dump_lp_block( const struct lp_block *b, char *name );
+
+
 static lp_topoloader_t topoloader = 0;
+
 
 void lp_register_topoloader(lp_topoloader_t l) 
 {
@@ -156,7 +156,6 @@ lp_new_param(char *name, char *source, struct lp_value *v)
   result->source_file = source;
   result->name = name;
   result->v = v;
-  
 
   return result;
 }
@@ -229,6 +228,7 @@ static void destroy_param(struct lp_param *p)
   free(p->name);
   destroy_value(p->v);
   free(p);
+  p = NULL;
 }
 
 
@@ -240,6 +240,7 @@ static void destroy_list(struct lp_list *l) {
 
   free(l->values);
   free(l);
+  l = NULL;
 }
 
 
@@ -269,6 +270,7 @@ static void destroy_value(struct lp_value *v) {
   }
 
   free(v);
+  v = NULL;
 }
 
 
@@ -283,6 +285,7 @@ static void destroy_block(struct lp_block *b) {
   free(b->name);
   free(b->params);
   free(b);
+  b = NULL;
 }
 
 static void destroy_topospec(struct lp_topospec *t)
@@ -290,18 +293,19 @@ static void destroy_topospec(struct lp_topospec *t)
   free(t->type);
   free(t->name);
   destroy_list(t->l);
+  t = NULL;
 }
 
 
-static struct lp_block *copy_block(struct lp_block *);
-static struct lp_list *copy_list(struct lp_list *);
-static struct lp_value *copy_value(struct lp_value *);
-static struct lp_param *copy_param(struct lp_param *);
+static struct lp_block *copy_block(const struct lp_block *);
+static struct lp_list *copy_list(const struct lp_list *);
+static struct lp_value *copy_value(const struct lp_value *);
+static struct lp_param *copy_param(const struct lp_param *);
 
-static struct lp_block *copy_block(struct lp_block *b)
+static struct lp_block *copy_block(const struct lp_block *b)
 {
   int c;
-  struct lp_block *result = calloc(1, sizeof(*result));
+  struct lp_block *result = calloc(1, sizeof(struct lp_block));
   memcpy(result, b, sizeof(struct lp_block));
   result->params = calloc(b->params_len, sizeof(result->params[0]));
 
@@ -319,7 +323,7 @@ static struct lp_block *copy_block(struct lp_block *b)
 }
 
 
-static struct lp_list *copy_list(struct lp_list *l) {
+static struct lp_list *copy_list(const struct lp_list *l) {
   int c;
   struct lp_list *result = calloc(1, sizeof(*result));
   memcpy(result, l, sizeof(struct lp_list));
@@ -334,7 +338,7 @@ static struct lp_list *copy_list(struct lp_list *l) {
 }
 
 
-static struct lp_value *copy_value(struct lp_value *v) {
+static struct lp_value *copy_value(const struct lp_value *v) {
   struct lp_value *result = calloc(1, sizeof(struct lp_value));
   memcpy(result, v, sizeof(struct lp_value));
   switch(v->t) {
@@ -357,7 +361,7 @@ static struct lp_value *copy_value(struct lp_value *v) {
   return result;
 }
 
-static struct lp_param *copy_param(struct lp_param *p) {
+static struct lp_param *copy_param(const struct lp_param *p) {
   struct lp_param *result = calloc(1, sizeof(struct lp_param));
   result->name = strdup(p->name);
   result->v = copy_value(p->v);
@@ -376,7 +380,7 @@ static void indent(FILE *f) {
 }
 
 void unparse_source(char *source, FILE *outfile) {
-  fprintf(outfile, "source %s", source);
+  fprintf(outfile, "source %s\n\n", source);
 }
 
 void unparse_type(int t, FILE *outfile) {
@@ -564,7 +568,6 @@ int lp_inst_list(struct lp_inst *i)
   int c;
   
   /*      unparse_block(spec, outputfile); */
-
   for(c = 0; c < i->l->values_len; c++) {
     if(!i->l->values[c]) continue;
     
@@ -605,7 +608,6 @@ int *lp_instantiate(char *targ, char *name) {
 
   // swap the name back
   spec->name = nametmp;
-
 
   if(!obj) {
     return 0;
@@ -727,7 +729,7 @@ struct lp_list *lp_list_add(struct lp_list *l,
   }
   newlen = 2 * c * sizeof(struct lp_value *);
   l->values = realloc(l->values, newlen);
-  bzero(l->values + c, newlen / 2);
+  bzero(&(l->values[c]), newlen / 2);
   l->values_len *= 2;
 
  done:
@@ -910,7 +912,7 @@ int lp_add_type(char *newt, char *parent) {
 
     lp_typetbl = realloc(lp_typetbl, newlen * sizeof(int *));
 
-    bzero(lp_typetbl + c, c * sizeof(int *));
+    bzero(&(lp_typetbl[c]), c * sizeof(int *));
     lp_typetbl_len = newlen;
   }
   else return -1;
@@ -941,15 +943,12 @@ int lp_add_param(struct lp_param ***b, int *plen,
       (*b)[c] = p;
       break;
     }
-    printf("%d: name = %s\n", c, (*b)[c]->name);
   }
-  fflush(stdout);
-  if(c == *plen) { // BONK
+  if(c == *plen) {
     /* didn't find a free slot -- double the array */
     int newlen = 2 * (*plen) + 1;
-    struct lp_param **new = calloc(newlen, sizeof(struct lp_param *));
-    memcpy(new, *b, (*plen) * sizeof(struct lp_param *));
-    (*b) = new;
+    (*b) = realloc((*b), newlen * sizeof(int *));
+    bzero(&((*b)[*plen]), ((*plen) + 1) * sizeof(int*));
     (*b)[(*plen)] = p;
     *plen = newlen;
   }
@@ -989,8 +988,8 @@ void lp_init_typetbl(void) {
 
   for(c = 0; c < lp_max_mod; c++) {
 
-    lp_typetbl[c] = calloc(sizeof(struct lp_subtype),1);
-    bzero(lp_typetbl[c], sizeof(struct lp_subtype));
+    lp_typetbl[c] = calloc(1, sizeof(struct lp_subtype));
+    //    bzero(lp_typetbl[c], sizeof(struct lp_subtype));
     lp_typetbl[c]->sub = strdup(lp_modules[c]->name);
   }
 
@@ -1016,6 +1015,7 @@ void lp_release_typetbl(void) {
   }
 
   free(lp_typetbl);
+  lp_typetbl = NULL;
 }
 
 
@@ -1132,17 +1132,21 @@ int range_match(char *range, char *name) {
  * cname name of instantiated component
  * loader is the module loader function for tname
  */
-int *lp_override_inst(struct lp_block *spec, 
+int *lp_override_inst(const struct lp_block *spec, 
 		  char *cname, 
 		  lp_modloader_t loader,
 		  char **overrides,
 		  int overrides_len)
 {
   int c, d;
-  struct lp_block *spec_copy;
+  struct lp_block *spec_copy = NULL;
   char *p1, *p2; 
   int *result;
-  
+
+#if 0
+  dump_lp_block( spec, "lp_override_inst" );
+#endif
+
   spec_copy = copy_block(spec);
 
   for(c = 0; c < overrides_len; c += 3) {
@@ -1219,26 +1223,15 @@ int lp_loadfile(FILE *in,
   overrides_len = cli_overrides_len;
 
   // do the searchpath
-#ifdef WIN32
-  lp_sp = strdup(getenv("LP_PATH"));
-#else
   lp_sp = getenv("LP_PATH");
-#endif
   if(lp_sp) {
     char *p = lp_sp;
     char *colon;
     
     lp_searchpath = calloc(LP_MAX_SP, sizeof(char*));
-#ifdef WIN32
-    lp_searchpath_len = 0;
-#endif
 
     while(*p) {
-#ifdef _WIN32 /* colons can occur in win32 filenames, so use semicolon separator */
-	  colon = strchr(p,';');
-#else
       colon = strchr(p, ':');
-#endif
       if(colon) {
 	char *next;
 
@@ -1256,11 +1249,6 @@ int lp_loadfile(FILE *in,
     }
   }
 
-#ifdef WIN32
-  free(lp_sp);
-  lp_sp = NULL;
-#endif
-
   // this creates a fresh array every time its run so caller 
   // is responsible for freeing it
   lp_tlts = 0;
@@ -1268,20 +1256,17 @@ int lp_loadfile(FILE *in,
   
   fflush(stdout);
   stdout_save = dup(1);
-#ifndef WIN32
   devnull = open("/dev/null", O_RDONLY);
   dup2(devnull, 1);
-#endif
 
   libparamparse();
 
   fflush(stdout);
-
-#ifndef WIN32
   dup2(stdout_save, 1);
+
   close(devnull);
   close(stdout_save);
-#endif
+
 
   if(tlts) {
     *tlts = lp_tlts;
@@ -1381,6 +1366,7 @@ lp_loadparams(void *it, struct lp_block *b, struct lp_mod *m) {
   }
 
   free(paramvec);
+  paramvec = NULL;
 
   return 0; // ???
 }
@@ -1390,46 +1376,14 @@ char *
 lp_search_path(char *cwd, char *name)
 {
   char *cand = calloc(LP_PATH_MAX, sizeof(char));
-#ifdef _WIN32
-  struct _stat s;
-#else
   struct stat s;
-#endif
   int i;
   
-#ifndef _WIN32
-  if(name[0] == '/'){
+  if(name[0] == '/')
     if(stat(name, &s))
       goto fail;
-    else
-      goto succ;
-  }
 
   snprintf(cand, LP_PATH_MAX, "%s/%s", cwd, name);
-  
-#else
-  if(name[0] == '\\'){
-    if(stat(name, &s))
-      goto fail;
-    else
-      goto succ;
-  }
-
-  if (strcmp(cwd, "") == 0)
-      cwd = ".";
-  
-  snprintf(cand, LP_PATH_MAX, "%s\\%s", cwd, name);
-
-  /* use \ separator instead of / */
-    {
-        char *sep = cand;
-        while (*sep)
-        {
-            if (*sep == '/') *sep = '\\';
-            sep++;
-        }
-    }
-#endif
 
   if(!stat(cand, &s))
     goto succ;
@@ -1451,4 +1405,40 @@ lp_search_path(char *cwd, char *name)
   return cand;
 
 }
+
+/*
+typedef enum {
+  BLOCK = -1,
+  S     = -2,
+  I     = -3,
+  D     = -4,
+  LIST  = -5,
+  TOPOSPEC = -6,
+  UV    = -7
+} lp_type_t;
+*/
+void dump_lp_block( const struct lp_block *b, char *name )
+{
+    int paramsIndex;
+    struct lp_param *param;
+
+    printf( "\n\nlp_block: %s", name );
+    printf( "\n  source file: %s",  b->source_file );
+    printf( "\n  name       : %s",  b->name );
+    printf( "\n  loader     : %p",  b->loader );
+    printf( "\n  params_len : %d",  b->params_len );
+    printf( "\n    params   : %p", b->params );
+    for( paramsIndex = 0; paramsIndex < b->params_len; paramsIndex++ )
+    {
+        param = b->params[paramsIndex];
+        if( NULL == param )
+            break;
+        printf( "\n      index      : %d", paramsIndex );
+        printf( "\n      source file: %s", b->params[paramsIndex]->source_file );
+        printf( "\n      name       : %s", b->params[paramsIndex]->name );
+    }
+    fflush( stdout );
+}
+
+// End of file
 

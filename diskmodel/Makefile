@@ -80,13 +80,13 @@ DM_USERSPACE_OBJ =  $(DM_LOADER_OBJ) $(DM_USERSPACE_SRC:.c=.o)
 libdiskmodel.a:	$(DM_OBJ) $(DM_USERSPACE_OBJ) 
 	$(MAKE) -C modules
 	@echo "Linking libdiskmodel.a $(DM_USERSPACE_OBJ)"
-	ar cru $@ $(DM_OBJ) $(DM_USERSPACE_OBJ)
+	ar crus $@ $(DM_OBJ) $(DM_USERSPACE_OBJ)
 	mkdir -p lib
 	$(CP) libdiskmodel.a lib
 
 # for kernel
 #libdiskmodel.a: modules $(DM_OBJ)
-#	ar cru $@ $(DM_OBJ)
+#	ar crus $@ $(DM_OBJ)
 
 clean:
 	rm -f *.o

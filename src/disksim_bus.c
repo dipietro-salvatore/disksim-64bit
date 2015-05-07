@@ -107,7 +107,7 @@
 #include "config.h"
 
 #include "modules/modules.h"
-#include "memsmodel/modules/modules.h"
+//#include "memsmodel/modules/modules.h"
 
 #include "disksim_device.h"
 
@@ -226,6 +226,7 @@ void bus_set_depths()
 	   default:         
 	     fprintf(stderr, "*** Invalid device type in bus slot\n");
 	     ddbg_assert(0);
+	     break;
 	   }
 
 	   /* fprintf (outputfile, "Back from setting device depth\n"); */
@@ -265,6 +266,11 @@ double bus_get_transfer_time(int busno, int bcount, int read)
 void bus_delay(int busno, int devtype, int devno, double delay, ioreq_event *curr)
 {
    bus_event *tmp = (bus_event *) getfromextraq();
+
+#ifdef DEBUG_BUS
+    fprintf( outputfile, "*** %f: bus_delay  adds this event to delayed_event  type %d, devno %d, blkno %d, bcount %d, flags 0x%x, delay %f msec\n", simtime, curr->type, curr->devno, curr->blkno, curr->bcount, curr->flags, delay );
+#endif
+
    tmp->type = BUS_DELAY_COMPLETE;
    tmp->time = simtime + delay;
    tmp->devno = devno;
@@ -278,6 +284,14 @@ void bus_delay(int busno, int devtype, int devno, double delay, ioreq_event *cur
 void bus_event_arrive(ioreq_event *ptr)
 {
    bus_event *curr = (bus_event *) ptr;
+
+#ifdef DEBUG_BUS
+   fprintf (outputfile, "*** %f: Entered bus_event_arrive: type = %d, busno = %d, slotno = %d, devtype = %d, devno = %d\n", simtime, curr->type, curr->busno, curr->slotno, curr->devtype, curr->devno );
+   if( NULL != curr->delayed_event )
+   {
+        dumpIOReq( "Entered bus_event_arrive: ioreq_event  ", curr->delayed_event );
+   }
+#endif
 
    if (curr->type == BUS_OWNERSHIP_GRANTED) {
       struct bus *currbus = getbus(curr->busno);
@@ -308,7 +322,7 @@ void bus_event_arrive(ioreq_event *ptr)
 	 fprintf(stderr, "Unknown device type at bus_event_arrive: %d, type %d\n", curr->devtype, curr->type);
 	 exit(1);
    }
-   addtoextraq((event *)curr);
+   addtoextraq((event *)curr);  // deallocate event object to extraq
 }
 
 
@@ -442,6 +456,11 @@ void bus_ownership_release(int busno)
 {
    bus_event *tmp;
    struct bus *currbus = getbus(busno);
+
+#ifdef DEBUG_BUS
+   fprintf (outputfile, "%f: bus_ownership_release  busno %d\n", simtime, busno );
+#endif
+
 /*
 fprintf (outputfile, "Bus ownership being released - %d\n", busno);
 */
@@ -470,6 +489,11 @@ void bus_remove_from_arbitration(int busno, ioreq_event *curr)
    bus_event *tmp;
    bus_event *trv;
    struct bus *currbus = getbus(busno);
+
+#ifdef DEBUG_BUS
+   fprintf (outputfile, "%f: bus_remove_from_arbitration  busno %d\n", simtime, busno );
+   dumpIOReq( "bus_deliver_event", curr );
+#endif
 
    if (currbus->arbwinner) {
       if (curr == currbus->arbwinner->delayed_event) {
@@ -501,17 +525,21 @@ void bus_remove_from_arbitration(int busno, ioreq_event *curr)
 
 void bus_deliver_event(int busno, int slotno, ioreq_event *curr)
 {
-   int devno;
+   int devno, devtype;
    struct bus *currbus = getbus(busno);
 
    ASSERT2((slotno >= 0) && (slotno < currbus->numslots), 
 	   "slotno", slotno, "busno", busno);
 
-/*
-fprintf (outputfile, "In middle of bus_deliver_event\n");
-*/
-   devno = currbus->slots[slotno].devno;
-   switch (currbus->slots[slotno].devtype) {
+   devno   = currbus->slots[slotno].devno;
+   devtype = currbus->slots[slotno].devtype;
+
+#ifdef DEBUG_BUS
+   fprintf (outputfile, "%f: bus_deliver_event  busno %d, slotno %d, busdevno %d, busdevtype %d\n", simtime, busno, slotno, devno, devtype );
+   dumpIOReq( "bus_deliver_event", curr );
+#endif
+
+   switch (devtype) {
 
    case CONTROLLER:  
      controller_event_arrive(devno, curr);
@@ -525,6 +553,7 @@ fprintf (outputfile, "In middle of bus_deliver_event\n");
    default:          
      fprintf(stderr, "Invalid device type in bus slot\n");
      assert(0);
+     break;
    }
 }
 
@@ -569,8 +598,7 @@ static int disksim_bus_printarbwaitstats;
 int disksim_bus_stats_loadparams(struct lp_block *b) {
    
   if(!disksim->businfo) {
-    disksim->businfo = malloc(sizeof(businfo_t));
-    bzero(disksim->businfo, sizeof(businfo_t));
+    disksim->businfo = (struct businfo *)calloc(1, sizeof(businfo_t));
   }
 
 
@@ -635,7 +663,7 @@ void bus_printstats()
       if (currbus->printstats) {
          sprintf (prefix, "Bus #%d (%s) ", i, currbus->name);
          fprintf (outputfile, "Bus #%d\n", i);
-         fprintf (outputfile, "Bus #%d Total utilization time: \t%.2f   \t%6.5f\n", i, (simtime - warmuptime - currbus->runidletime), ((simtime - warmuptime - currbus->runidletime) / (simtime - warmuptime)));
+         fprintf (outputfile, "Bus #%d Total utilization time: \t%.2f   \t%6.5f\n", i, (simtime - WARMUPTIME - currbus->runidletime), ((simtime - WARMUPTIME - currbus->runidletime) / (simtime - WARMUPTIME)));
          if (disksim->businfo->bus_printidlestats) {
             stat_print (&currbus->busidlestats, prefix);
          }
@@ -663,9 +691,9 @@ void bus_cleanstats()
 }
 
 bus *bus_copy(bus *orig) {
-  bus *result = malloc(sizeof(bus));
-  if(result) return memcpy(result, orig, sizeof(bus));
-  else return 0;
+  bus *result = (bus *)malloc(sizeof(bus));
+  if(result) return (bus *)memcpy(result, orig, sizeof(bus));
+  else return (bus *)0;
 }
 
 /* bus constructor using new parser.  Returns null on failure
@@ -681,8 +709,7 @@ bus *disksim_bus_loadparams(struct lp_block *b,
   int c;
 
   if(!disksim->businfo) {
-    disksim->businfo = malloc(sizeof(businfo_t));
-    bzero(disksim->businfo, sizeof(businfo_t));
+    disksim->businfo = (struct businfo *)calloc(1, sizeof(businfo_t));
   }
 
   //   disksim->businfo->bus_printidlestats = disksim_bus_printidlestats;
@@ -696,17 +723,17 @@ bus *disksim_bus_loadparams(struct lp_block *b,
    if(c == disksim->businfo->buses_len) {
      int newlen = c ? 2*c : 2;
      
-     disksim->businfo->buses = realloc(disksim->businfo->buses,
-				       newlen * sizeof(int*));
+     disksim->businfo->buses = (bus **)realloc(disksim->businfo->buses,
+				       newlen * sizeof(void*));
      if(newlen > 2)
-       bzero(disksim->businfo->buses + c, (newlen/2)*sizeof(int *));
+       bzero(&(disksim->businfo->buses[c]), (newlen/2)*sizeof(void*));
      else 
-       bzero(disksim->businfo->buses, 2 * sizeof(int *));
+       bzero(disksim->businfo->buses, newlen * sizeof(void*));
 
      disksim->businfo->buses_len = newlen;
 
    }
-   result = malloc(sizeof(struct bus));
+   result = (bus *)malloc(sizeof(struct bus));
    if(!result) { return 0; }
    numbuses++;
    
@@ -751,8 +778,8 @@ int load_bus_topo(struct lp_topospec *t, int *parentctlno) {
   /* if this bus is the child of a controller */
   if(parentctlno) { b->numslots++; }
 
-  b->slots = malloc(b->numslots * sizeof(slot));
-  bzero(b->slots, b->numslots * sizeof(slot));
+  b->slots = (slot *)calloc(b->numslots, sizeof(slot));
+  //  bzero(b->slots, b->numslots * sizeof(slot));
 
   if(parentctlno) {
     b->slots[0].devtype = CONTROLLER;
@@ -792,6 +819,8 @@ int load_bus_topo(struct lp_topospec *t, int *parentctlno) {
 	(type == lp_mod_name("disksim_simpledisk"))
 	||
 	(type == lp_mod_name("memsmodel_mems"))
+	|| /*SSD:*/
+        (type == lp_mod_name("ssdmodel_ssd"))
 	)
       {
 	b->slots[slotnum].devtype = DEVICE;

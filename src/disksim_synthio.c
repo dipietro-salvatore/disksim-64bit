@@ -98,7 +98,8 @@
  * holders.
  */
 
-
+#include <stdio.h>
+#include <math.h>
 #include "disksim_synthio.h"
 #include "modules/modules.h"
 
@@ -109,16 +110,123 @@
 #define SYNTHIO_TWOVALUE	4
 
 
-static double synthio_get_uniform (synthio_distr *fromdistr)
+void dump_synthio_distr( synthio_distr *distr )
 {
-   return(((fromdistr->var - fromdistr->base) * DISKSIM_drand48()) + fromdistr->base);
+    if( NULL != outputfile )
+    {
+        fprintf( outputfile, "\nsynthio_distr dump: %p", distr );
+        if( NULL != distr )
+        {
+            fprintf( outputfile, "\n  base     : %lf", distr->base );
+            fprintf( outputfile, "\n  mean     : %lf", distr->mean );
+            fprintf( outputfile, "\n  var      : %lf", distr->var );
+            fprintf( outputfile, "\n  type     : %d", distr->type );
+            switch( distr->type )
+            {
+              case SYNTHIO_UNIFORM:
+                fprintf( outputfile, "\n  typename : SYNTHIO_UNIFORM" );
+                break;
+
+              case SYNTHIO_NORMAL:
+                fprintf( outputfile, "\n  typename : SYNTHIO_NORMAL" );
+                break;
+
+              case SYNTHIO_EXPONENTIAL:
+                fprintf( outputfile, "\n  typename : SYNTHIO_EXPONENTIAL" );
+                break;
+
+              case SYNTHIO_POISSON:
+                fprintf( outputfile, "\n  typename : SYNTHIO_POISSON" );
+                break;
+
+              case SYNTHIO_TWOVALUE:
+                fprintf( outputfile, "\n  typename : SYNTHIO_TWOVALUE" );
+                break;
+            }
+        }
+        fprintf( outputfile, "\n" );
+    }
 }
 
 
+void dump_synthio_generator( synthio_generator *gen )
+{
+    if( NULL != outputfile )
+    {
+        fprintf( outputfile, "\nsynthio_generator dump:" );
+        fprintf( outputfile, "\n  tracefile    : %p", gen->tracefile );
+        fprintf( outputfile, "\n  probseq      : %lf", gen->probseq );
+        fprintf( outputfile, "\n  probloc      : %lf", gen->probloc );
+        fprintf( outputfile, "\n  probread     : %lf", gen->probread );
+        fprintf( outputfile, "\n  probtmcrit   : %lf", gen->probtmcrit );
+        fprintf( outputfile, "\n  probtmlim    : %lf", gen->probtmlim );
+        fprintf( outputfile, "\n  number       : %d", gen->number );
+        fprintf( outputfile, "\n  numdisks     : %d", gen->numdisks );
+        fprintf( outputfile, "\n  devno        : %d", *(gen->devno) );
+        fprintf( outputfile, "\n  numblocks    : %d", gen->numblocks );
+        fprintf( outputfile, "\n  sectsperdisk : %d", gen->sectsperdisk );
+        fprintf( outputfile, "\n  blksperdisk  : %d", gen->blksperdisk );
+        fprintf( outputfile, "\n  blocksize    : %d", gen->blocksize );
+        fprintf( outputfile, "\n  ioreq        : %p", gen->pendio );
+        if( NULL != gen->pendio )
+        {
+            fprintf( outputfile, "\n    type       : %d", gen->pendio->type );
+            fprintf( outputfile, "\n    devno      : %d", gen->pendio->devno );
+            fprintf( outputfile, "\n    blkno      : %d", gen->pendio->blkno );
+            fprintf( outputfile, "\n    bcount     : %d", gen->pendio->bcount );
+        }
+
+        dump_synthio_distr( &gen->tmlimit );
+        dump_synthio_distr( &gen->genintr );
+        dump_synthio_distr( &gen->seqintr );
+        dump_synthio_distr( &gen->locintr );
+        dump_synthio_distr( &gen->locdist );
+        dump_synthio_distr( &gen->sizedist );
+        fprintf( outputfile, "\n" );
+    }
+}
+
+
+//*****************************************************************************
+// Function: synthio_get_uniform
+//    Generates a uniform random number.
+//
+// Parameters:
+//   synthio_distr *fromdistr     pointer to a synthio_distr object
+//                                  provides max and min values
+//
+// Returns: double
+//   double random number value with a range between the max and min values.
+//*****************************************************************************
+
+static double synthio_get_uniform (synthio_distr *fromdistr)
+{
+    double ranNum = ((fromdistr->var - fromdistr->base) * DISKSIM_drand48()) + fromdistr->base;
+
+#ifdef DEBUG_SYNTHIO
+    fprintf (outputfile, "*** %f: synthio_get_uniform  ranNum: %f\n", simtime, ranNum );
+#endif
+
+    return ranNum;
+}
+
+
+//*****************************************************************************
+// Function: synthio_get_normal
+//    Generates a normal (or Gaussian) random number.
+//
+// Parameters:
+//   synthio_distr *fromdistr     pointer to a synthio_distr object
+//                                  provides mean and variance values
+//
+// Returns: double
+//
+//*****************************************************************************
+
 static double synthio_get_normal (synthio_distr *fromdistr)
 {
-   double y1, y2;
-   double y = 0;
+   double ranNum, y1, y2;
+   double y = 0.0;
 
    while (y <= 0.0) {
       y2 = - log((double) 1.0 - DISKSIM_drand48());
@@ -128,22 +236,50 @@ static double synthio_get_normal (synthio_distr *fromdistr)
    if (DISKSIM_drand48() < 0.5) {
       y1 = -y1;
    }
-   return((fromdistr->var * y1) + fromdistr->mean);
+   ranNum = (fromdistr->var * y1) + fromdistr->mean;
+
+#ifdef DEBUG_SYNTHIO
+   fprintf (outputfile, "*** %f: synthio_get_normal  ranNum: %f\n", simtime, ranNum );
+#endif
+
+   return ranNum;
 }
 
 
+//*****************************************************************************
+// Function: synthio_get_exponential
+//    Generates a exponential random number.
+//    Computes:  rannum = base - mean * e^(1-x)
+//    Where:     x is a random number between 0.0 and 1.0 exclusive
+//
+// Parameters:
+//   synthio_distr *fromdistr     pointer to a synthio_distr object
+//                                  provides mean and base values
+//
+// Returns: double
+//
+//*****************************************************************************
+
 static double synthio_get_exponential (synthio_distr *fromdistr)
 {
-   double dtmp;
+   double dtmp, ranNum, drand48;
 
-   dtmp = log((double) 1.0 - DISKSIM_drand48());
-   return((fromdistr->base - (fromdistr->mean * dtmp)));
+   drand48 =  DISKSIM_drand48();
+   dtmp = log((double) 1.0 - drand48);
+   ranNum = (fromdistr->base - (fromdistr->mean * dtmp));
+
+#ifdef DEBUG_SYNTHIO
+   fprintf (outputfile, "*** %f: synthio_get_exponential  base %lf, mean %lf, drand48 %lf, ranNum: %lf\n", simtime, fromdistr->base, fromdistr->mean, drand48, ranNum );
+   fflush( outputfile );
+#endif
+
+   return ranNum;
 }
 
 
 static double synthio_get_poisson (synthio_distr *fromdistr)
 {
-   double dtmp = 1.0;
+   double dtmp = 1.0, ranNum;
    int count = 0;
    double stop;
 
@@ -153,153 +289,206 @@ static double synthio_get_poisson (synthio_distr *fromdistr)
       count++;
    }
    count--;
-   return((double) count + fromdistr->base);
+   ranNum = (double) count + fromdistr->base;
+
+#ifdef DEBUG_SYNTHIO
+   fprintf (outputfile, "*** %f: synthio_get_poisson  ranNum: %lf\n", simtime, ranNum );
+#endif
+
+   return ranNum;
 }
 
 
 static double synthio_get_twovalue (synthio_distr *fromdistr)
 {
+   double ranNum = fromdistr->base;
+
    if (DISKSIM_drand48() < fromdistr->var) {
-      return(fromdistr->mean);
-   } else {
-      return(fromdistr->base);
+      ranNum = fromdistr->mean;
    }
+
+#ifdef DEBUG_SYNTHIO
+   fprintf (outputfile, "*** %f: synthio_get_twovalue  ranNum: %lf\n", simtime, ranNum );
+#endif
+
+   return ranNum;
 }
 
 
 static double synthio_getrand (synthio_distr *fromdistr)
 {
-   switch (fromdistr->type) {
+    switch (fromdistr->type) {
       case SYNTHIO_UNIFORM:
-	                return(synthio_get_uniform(fromdistr));
+        return(synthio_get_uniform(fromdistr));
       case SYNTHIO_NORMAL:
-                        return(synthio_get_normal(fromdistr));
+        return(synthio_get_normal(fromdistr));
       case SYNTHIO_EXPONENTIAL:
-			return(synthio_get_exponential(fromdistr));
+        return(synthio_get_exponential(fromdistr));
       case SYNTHIO_POISSON:
-			return(synthio_get_poisson(fromdistr));
+        return(synthio_get_poisson(fromdistr));
       case SYNTHIO_TWOVALUE:
-			return(synthio_get_twovalue(fromdistr));
+        return(synthio_get_twovalue(fromdistr));
       default:
-	                fprintf(stderr, "Unrecognized distribution type - %d\n", fromdistr->type);
-	                exit(1);
+        fprintf(stderr, "Unrecognized distribution type - %d\n", fromdistr->type);
+        exit(1);
    }
 }
 
 
 static void synthio_appendio (process *procp, ioreq_event *tmp)
 {
-   synthio_generator *gen = (synthio_generator *) procp->space;
-   sleep_event *limittmp = NULL;
-   event *prev = NULL;
-   sleep_event *newsleep = NULL;
-   sleep_event *callsleep = NULL;
-   sleep_event *retsleep = NULL;
-   ioreq_event *new;
-   int blocksize;
-   int gennum;
+    synthio_generator *gen = (synthio_generator *) procp->space;
+    sleep_event *limittmp = NULL;
+    event *prev = NULL;
+    sleep_event *newsleep = NULL;
+    sleep_event *callsleep = NULL;
+    sleep_event *retsleep = NULL;
+    ioreq_event *new_event;
+    int blocksize;
+    int gennum;
 
-   blocksize = gen->blocksize;
-   gennum = gen->number;
-   new = (ioreq_event *) getfromextraq();
-   new->type = IOREQ_EVENT;
-   new->time = tmp->time;
-   new->devno = tmp->devno;
-   new->blkno = tmp->blkno * blocksize;
-   new->bcount = tmp->bcount * blocksize;
-   new->flags = tmp->flags;
-   new->cause = tmp->cause;
-   new->opid = (synthio_endiocnt * gennum) + synthio_iocnt;
-   /* this is being considered "ok" under the assumption that opid will */
-   /* never exceed 2^32.....                                            */
-   new->buf = (void *) new->opid;
-   if(synthio_syscalls){
-      retsleep = (sleep_event *) getfromextraq();
-      retsleep->type = SLEEP_EVENT;
-      retsleep->time = synthio_sysret_time;
-      retsleep->chan = new->buf;
-      retsleep->iosleep = 1;
-      callsleep = (sleep_event *) getfromextraq();
-      callsleep->type = SLEEP_EVENT;
-      callsleep->time = synthio_syscall_time;
-      callsleep->chan = new->buf;
-      callsleep->iosleep = 1;
-   }
-   if (new->flags & (TIME_CRITICAL|TIME_LIMITED)) {
-      newsleep = (sleep_event *) getfromextraq();
-      newsleep->type = SLEEP_EVENT;
-      newsleep->time = 0.0;
-      newsleep->chan = new->buf;
-      newsleep->iosleep = 1;
-      if (new->flags & TIME_CRITICAL) {
-	if(synthio_syscalls){
-	  retsleep->next = procp->eventlist;
-	  new->next = (ioreq_event *) retsleep;
-	  callsleep->next = (event *) new;
-	  new = (ioreq_event *) callsleep;
-	  newsleep = NULL;
-	}else{
-	  newsleep->next = procp->eventlist;
-	  new->next = (ioreq_event *) newsleep;
-	}
-      } else {
-	new->next = (ioreq_event *) procp->eventlist;
-	newsleep->time = -1.0;
-	while (newsleep->time < 0.0) {
-	  newsleep->time = synthio_getrand (&gen->tmlimit);
-	}
-	newsleep->time += new->time;
-	limittmp = gen->limits;
-	if ((limittmp == NULL) || (newsleep->time < limittmp->time)) {
-	  newsleep->next = (event *) gen->limits;
-	  gen->limits = (sleep_event *) newsleep;
-	  if (limittmp) {
-	    limittmp->time -= newsleep->time;
-	  }
-	} else {
-	  newsleep->time -= limittmp->time;
-	  while ((limittmp->next) && (newsleep->time >= limittmp->next->time)) {
-	    limittmp = (sleep_event *) limittmp->next;
-	    newsleep->time -= limittmp->time;
-	  }
-	  newsleep->next = limittmp->next;
-	  limittmp->next = (event *) newsleep;
-	  if (newsleep->next) {
-	    newsleep->next->time -= newsleep->time;
-	  }
-	}
-	newsleep = NULL;
-      }
-   } else {
-     new->next = (ioreq_event *) procp->eventlist;
-   }
-   
-   procp->eventlist = (event *) new;
+#ifdef DEBUG_SYNTHIO
+    fprintf (outputfile, "*** %f: synthio_appendio  Entered  runcpu %d\n", simtime, procp->runcpu );
+#endif
 
-synthio_check_genlimits:
-   limittmp = gen->limits;
-   while ((limittmp) && (limittmp->time < new->time)) {
-      gen->limits = (sleep_event *) limittmp->next;
-      new->time -= limittmp->time;
-      limittmp->next = (event *) new;
-      if (prev) {
-         prev->next = (event *) limittmp;
-      } else {
-         procp->eventlist = (event *) limittmp;
-      }
-      prev = (event *) limittmp;
-      limittmp = gen->limits;
-   }
+    SYNTHIO_IOCNT++;
 
-   if ((newsleep) && (gen->limits)) {
-      prev = (event *) new;
-      new = (ioreq_event *) newsleep;
-      newsleep = NULL;
-      goto synthio_check_genlimits;
-   }
+    blocksize = gen->blocksize;
+    gennum = gen->number;
+    new_event = (ioreq_event *) getfromextraq();
+    new_event->type = IOREQ_EVENT;
+    new_event->time = tmp->time;
+    new_event->devno = tmp->devno;
+    new_event->blkno = tmp->blkno * blocksize;
+    new_event->bcount = tmp->bcount * blocksize;
+    new_event->flags = tmp->flags;
+    new_event->cause = tmp->cause;
+    new_event->opid = (SYNTHIO_ENDIOCNT * gennum) + SYNTHIO_IOCNT;
+    /* this is being considered "ok" under the assumption that opid will */
+    /* never exceed 2^32.....                                            */
+    new_event->buf = (void *) &new_event->opid;
 
+    if( 0 != SYNTHIO_SYSCALLS)
+    {
+        retsleep = (sleep_event *) getfromextraq();
+        retsleep->type = SLEEP_EVENT;
+        retsleep->time = SYNTHIO_SYSRET_TIME;
+        retsleep->chan = new_event->buf;
+        retsleep->iosleep = 1;
+        callsleep = (sleep_event *) getfromextraq();
+        callsleep->type = SLEEP_EVENT;
+        callsleep->time = SYNTHIO_SYSCALL_TIME;
+        callsleep->chan = new_event->buf;
+        callsleep->iosleep = 1;
+    }
+    if (new_event->flags & (TIME_CRITICAL|TIME_LIMITED))
+    {
+        newsleep = (sleep_event *) getfromextraq();
+        newsleep->type = SLEEP_EVENT;
+        newsleep->time = 0.0;
+        newsleep->chan = new_event->buf;
+        newsleep->iosleep = 1;
 
-   //fprintf (stderr, "New request %d, time %f, devno %d, blkno %d, bcount %d, flags %x\n", synthio_iocnt, new->time, new->devno, new->blkno, new->bcount, new->flags);
+        if (new_event->flags & TIME_CRITICAL)
+        {
+            if(SYNTHIO_SYSCALLS)
+            {
+                retsleep->next = procp->eventlist;
+                new_event->next = (ioreq_event *) retsleep;
+                callsleep->next = (event *) new_event;
+                new_event = (ioreq_event *) callsleep;
+                newsleep = NULL;
+            }
+            else
+            {
+                newsleep->next = procp->eventlist;
+                new_event->next = (ioreq_event *) newsleep;
+            }
+        }
+        else
+        {
+            new_event->next = (ioreq_event *) procp->eventlist;
+            newsleep->time = -1.0;
+
+            while (newsleep->time < 0.0)
+            {
+                newsleep->time = synthio_getrand (&gen->tmlimit);
+            }
+
+            newsleep->time += new_event->time;
+            limittmp = gen->limits;
+
+            if ((limittmp == NULL) || (newsleep->time < limittmp->time))
+            {
+                newsleep->next = (event *) gen->limits;
+                gen->limits = (sleep_event *) newsleep;
+
+                if (limittmp) {
+                    limittmp->time -= newsleep->time;
+                }
+            }
+            else
+            {
+                newsleep->time -= limittmp->time;
+
+                while ((limittmp->next) && (newsleep->time >= limittmp->next->time))
+                {
+                    limittmp = (sleep_event *) limittmp->next;
+                    newsleep->time -= limittmp->time;
+                }
+
+                newsleep->next = limittmp->next;
+                limittmp->next = (event *) newsleep;
+
+                if (newsleep->next)
+                {
+                    newsleep->next->time -= newsleep->time;
+                }
+            }
+
+            newsleep = NULL;
+        }
+    }
+    else
+    {
+        new_event->next = (ioreq_event *) procp->eventlist;
+    }
+
+    procp->eventlist = (event *) new_event;
+
+    synthio_check_genlimits:
+    limittmp = gen->limits;
+    while ((limittmp) && (limittmp->time < new_event->time))
+    {
+        gen->limits = (sleep_event *) limittmp->next;
+        new_event->time -= limittmp->time;
+        limittmp->next = (event *) new_event;
+        if (prev)
+        {
+            prev->next = (event *) limittmp;
+        }
+        else
+        {
+            procp->eventlist = (event *) limittmp;
+        }
+
+        prev = (event *) limittmp;
+        limittmp = gen->limits;
+    }
+
+    if ((newsleep) && (gen->limits))
+    {
+        prev = (event *) new_event;
+        new_event = (ioreq_event *) newsleep;
+        newsleep = NULL;
+        goto synthio_check_genlimits;
+    }
+
+    if( NULL != DISKSIM_SYNTHIO_LOG )
+    {
+        fprintf( DISKSIM_SYNTHIO_LOG, "%f %d %d %d %d (%x) %d %p\n", new_event->time, new_event->devno, new_event->blkno, new_event->bcount, new_event->flags, new_event->flags, new_event->tagID, gen );
+        fflush( DISKSIM_SYNTHIO_LOG );
+    }
 }
 
 
@@ -310,12 +499,16 @@ void synthio_initialize_generator (process *procp)
    event *evptr;
    double reqclass;
 
+#ifdef DEBUG_SYNTHIO
+   fprintf (outputfile, "*** %f: synthio_initialize_generator  Enter\n", simtime );
+#endif
+
    evptr = getfromextraq();
    evptr->time = 0.0;
    evptr->type = SYNTHIO_EVENT;
    evptr->next = NULL;
    procp->eventlist = evptr;
-   gen = (synthio_generator *) procp->space;
+   gen = (synthio_generator *) procp->space;	// holds a "synthio_generator *" pointer ???
    if (gen == NULL) {
       fprintf(stderr, "Process with no synthetic generator in synthio_initialize\n");
       exit(1);
@@ -336,6 +529,7 @@ void synthio_initialize_generator (process *procp)
    if (DISKSIM_drand48() < gen->probread) {
       tmp->flags |= READ;
    }
+
    reqclass = DISKSIM_drand48() - gen->probtmcrit;
    if (reqclass < 0.0) {
       tmp->flags |= TIME_CRITICAL;
@@ -345,108 +539,149 @@ void synthio_initialize_generator (process *procp)
    gen->pendio = tmp;
    synthio_appendio(procp, tmp);
 
-fprintf (outputfile, "Initialized synthio process #%d, first event at time %f\n", procp->pid, procp->eventlist->time);
-
+#ifdef DEBUG_SYNTHIO
+   fprintf (outputfile, "****** %f: Initialized synthio process #%d, first event at time %f\n", simtime, procp->pid, procp->eventlist->time);
+   fprintf (outputfile, "****** %f:   timeinterval %f, cause %d, devno: %d, blkno: %d, bcount: %d, flags: %d\n",  simtime, tmp->time, tmp->cause, tmp->devno, tmp->blkno, tmp->bcount, tmp->flags );
+   fprintf (outputfile, "*** %f: synthio_initialize_generator  Exit\n", simtime );
+   fflush( outputfile );
+#endif
 }
 
 
+//*****************************************************************************
+// Function: synthio_generatenextio
+//    Generates the next I/O request to be executed and places the request in gen->pendio.
+//
+// Parameters:
+//   synthio_generator *gen     pointer to a synthio_generator object
+//
+// Returns: int
+//   0 = done, 1 = I/O request generated
+//*****************************************************************************
+
 static int synthio_generatenextio (synthio_generator *gen)
 {
-   double type;
-   double reqclass;
-   int blkno;
-   ioreq_event *tmp;
+    double type;
+    double reqclass;
+    int blkno;
+    ioreq_event *tmp;
 
-   if ((simtime >= synthio_endtime) || (synthio_iocnt >= synthio_endiocnt))
-      return 0;
+    if ((simtime >= SYNTHIO_ENDTIME) || (SYNTHIO_IOCNT >= SYNTHIO_ENDIOCNT))
+        return 0;
 
-   tmp = gen->pendio;
-   if (gen->tracefile) {
-      gen->pendio = 
-	(ioreq_event *)iotrace_get_ioreq_event(gen->tracefile, 
-					       disksim->traceformat, 
-					       tmp);
-      if (gen->pendio) {
-	 tmp->cause = gen->number;
-	 /* tmp->time = 0; */
-      } else {
-	 fprintf(stderr, "Returning NULL event in synthio_generatenextio\n");
-	 return 0;
-      }
-      return 1;
-   }
+    tmp = gen->pendio;
+    if (gen->tracefile)  // hurst_r   doesn't look like tracefile is used and synthio_gencopy sets it to NULL.
+    {
+#ifdef DEBUG_SYNTHIO
+        fprintf (outputfile, "*** %f: synthio_generatenextio   Input from trace file\n", simtime );
+#endif
 
-   type = DISKSIM_drand48();
+        gen->pendio = (ioreq_event *)iotrace_get_ioreq_event(
+                gen->tracefile,
+                disksim->traceformat,
+                tmp);
+        if (gen->pendio)
+        {
+            tmp->cause = gen->number;
+            /* tmp->time = 0; */
+        }
+        else
+        {
+            fprintf(stderr, "Returning NULL event in synthio_generatenextio\n");
+            return 0;
+        }
+        return 1;
+    }
 
-   if ((type < gen->probseq) && 
-       ((tmp->blkno + 2*tmp->bcount) < gen->blksperdisk)) {
+    type = DISKSIM_drand48();
 
-     tmp->time = -1.0;
+#ifdef DEBUG_SYNTHIO
+    fprintf (outputfile, "*** %f: synthio_generatenextio   SynthIO used, probabiltyType %lf\n",  simtime, type );
+    fprintf (outputfile, "*** %f: synthio_generatenextio   SynthIO used, timeinterval %f, cause %d, devno: %d, blkno: %d, bcount: %d, flags: %d\n",  simtime, tmp->time, tmp->cause, tmp->devno, tmp->blkno, tmp->bcount, tmp->flags );
+    fprintf (outputfile, "*** %f: synthio_generatenextio   SynthIO used, number %d, blksperhead %d, probseq %lf, probloc %lf, probread %lf\n",  simtime, gen->number, gen->blksperdisk, gen->probseq, gen->probloc, gen->probread );
+    fflush( outputfile );
+#endif
 
-     while (tmp->time < 0.0) {
-       tmp->time = synthio_getrand(&gen->seqintr);
-     }
+    // 0.0                                                                                 1.0
+    //  |       probseq             |       probloc             |      probrandom           |
+    //  |---------------------------|---------------------------|---------------------------|
 
-     tmp->flags = SEQ | (tmp->flags & READ);
-     tmp->cause = gen->number;
-     tmp->blkno += tmp->bcount;
-   } 
-   else if ((type < (gen->probseq + gen->probloc)) && 
-	    (type >= gen->probseq)) {
+    if ((type <= gen->probseq) && ((tmp->blkno + 2*tmp->bcount) < gen->blksperdisk))
+    {
+        tmp->time = -1.0;
 
-     tmp->time = -1.0;
-     while (tmp->time < 0.0) {
-       tmp->time = synthio_getrand(&gen->locintr);
-     }
-     tmp->flags = LOCAL;
-     tmp->cause = gen->number;
-     blkno = gen->blksperdisk;
-     while (((blkno + tmp->bcount) >= gen->blksperdisk) 
-	    || (blkno < 0) 
-	    || (tmp->bcount <= 0)) 
-       {
-	 blkno = tmp->blkno + 
-	   (int)synthio_getrand(&gen->locdist) / gen->blocksize;
-	 tmp->bcount = ((int) synthio_getrand(&gen->sizedist) + 
-			gen->blocksize - 1) / gen->blocksize;
-       }
-     tmp->blkno = blkno;
-     if (DISKSIM_drand48() < gen->probread) {
-       tmp->flags |= READ;
-     }
-   } 
-   else {
-      tmp->time = -1.0;
-      while (tmp->time < 0.0) {
-	tmp->time = synthio_getrand(&gen->genintr);
-      }
-      tmp->flags = 0;
-      tmp->cause = gen->number;
-      tmp->devno = gen->devno[(int)(DISKSIM_drand48() * 
-				    (double)gen->numdisks)];
+        while (tmp->time < 0.0)
+        {
+            tmp->time = synthio_getrand(&gen->seqintr);
+        }
 
-      tmp->blkno = tmp->bcount = gen->blksperdisk;
-      while (((tmp->blkno + tmp->bcount) >= gen->blksperdisk) || 
-	     (tmp->bcount <= 0)) {
+        tmp->flags = SEQ | (tmp->flags & READ);
+        tmp->cause = gen->number;
+        tmp->blkno += tmp->bcount;
+    }
+    else if ((type > gen->probseq) && (type < (gen->probseq + gen->probloc)))
+    {
+        tmp->time = -1.0;
+        while (tmp->time < 0.0)
+        {
+            tmp->time = synthio_getrand(&gen->locintr);
+        }
+        tmp->flags = LOCAL;
+        tmp->cause = gen->number;
+        blkno = gen->blksperdisk;
+        while (((blkno + tmp->bcount) >= gen->blksperdisk)
+                || (blkno < 0)
+                || (tmp->bcount <= 0))
+        {
+            blkno = tmp->blkno + (int)synthio_getrand(&gen->locdist) / gen->blocksize;
+            tmp->bcount = ((int) synthio_getrand(&gen->sizedist) + gen->blocksize - 1) / gen->blocksize;
+        }
+        tmp->blkno = blkno;
+        if (DISKSIM_drand48() < gen->probread)
+        {
+            tmp->flags |= READ;
+        }
+    }
+    else
+    {
+        tmp->time = -1.0;
+        while (tmp->time < 0.0)
+        {
+            tmp->time = synthio_getrand( &gen->genintr );
+        }
+        tmp->flags = 0;
+        tmp->cause = gen->number;
+        tmp->devno = gen->devno[(int)(DISKSIM_drand48() * (double)gen->numdisks)];
 
-	tmp->blkno = (int) (DISKSIM_drand48() * (double)gen->blksperdisk);
-	tmp->bcount = ((int) synthio_getrand(&gen->sizedist) + 
-		       gen->blocksize - 1) / gen->blocksize;
-      }
+        tmp->blkno = tmp->bcount = gen->blksperdisk;
+        while (((tmp->blkno + tmp->bcount) >= gen->blksperdisk) || (tmp->bcount <= 0))
+        {
+            tmp->blkno = (int) (DISKSIM_drand48() * (double)gen->blksperdisk);
+            tmp->bcount = ((int) synthio_getrand(&gen->sizedist) + gen->blocksize - 1) / gen->blocksize;
+        }
 
-      if (DISKSIM_drand48() < gen->probread) {
-	tmp->flags = READ;
-      }
-   }
-   reqclass = DISKSIM_drand48() - gen->probtmcrit;
+        if (DISKSIM_drand48() < gen->probread)
+        {
+            tmp->flags = READ;
+        }
+    }
+    reqclass = DISKSIM_drand48() - gen->probtmcrit;
 
-   if (reqclass < 0.0) {
-     tmp->flags |= TIME_CRITICAL;
-   } 
-   else if (reqclass < gen->probtmlim) {
-     tmp->flags |= TIME_LIMITED;
-   }
-   return 1;
+    if (reqclass < 0.0)
+    {
+        tmp->flags |= TIME_CRITICAL;
+    }
+    else if (reqclass < gen->probtmlim)
+    {
+        tmp->flags |= TIME_LIMITED;
+    }
+
+#ifdef DEBUG_SYNTHIO
+    fprintf (outputfile, "*** %f: synthio_generatenextio   SynthIO used, time interval: %lf, cause: %d, blkno: %d, bcount: %d, flags: %d\n",  simtime, tmp->time, tmp->cause, tmp->blkno, tmp->bcount, tmp->flags );
+    fflush( outputfile );
+#endif
+
+    return 1;
 }
 
 
@@ -456,17 +691,17 @@ void synthio_generate_io_activity (process *procp)
 
    gen = (synthio_generator *) procp->space;
 
-   //   fprintf (stderr, "simtime %f, endtime %f, iocnt %d, endiocnt %d\n", simtime, synthio_endtime, synthio_iocnt, synthio_endiocnt);
-   
-   synthio_iocnt++;
+#ifdef DEBUG_SYNTHIO
+    fprintf (outputfile, "*** %f: synthio_generate_io_activity   runcpu %d, endtime %f, iocnt %d, endiocnt %d\n", simtime, procp->runcpu, SYNTHIO_ENDTIME, SYNTHIO_IOCNT, SYNTHIO_ENDIOCNT );
+    fflush( outputfile );
+#endif
+
    if (synthio_generatenextio(gen)) {
       synthio_appendio(procp, gen->pendio);
    } else {
       disksim_simstop();
    }
 }
-
-
 
 
 void synthio_resetstats()
@@ -691,7 +926,7 @@ int loadsynthgenerators(synthio_generator *result,
 int disksim_synthio_loadparams(struct lp_block *b) {
 
   if(!disksim->synthio_info) {
-    disksim->synthio_info = DISKSIM_malloc (sizeof(synthio_info_t));
+    disksim->synthio_info = (synthio_info_t *)DISKSIM_malloc (sizeof(synthio_info_t));
     bzero ((char *)disksim->synthio_info, sizeof(synthio_info_t));
   }
 
@@ -715,13 +950,12 @@ loadsynthgenerators(synthio_generator *junk,
   process *procp;
   int slot = 0;
 
-  if(synthio_gens) {
+  if( NULL != SYNTHIO_GENS ) {
     fprintf(stderr, "*** error: tried to redefine synth. I/O generators.\n");
     return -1;
   }
 
-  synthio_gens = malloc(l->values_len * sizeof(synthio_generator));
-  bzero(synthio_gens, l->values_len * sizeof(synthio_generator));
+  SYNTHIO_GENS = (synthio_generator **) calloc(1, l->values_len * sizeof(synthio_generator));
   disksim->synthio_info->synthio_gens_len = l->values_len;
 
   for(c = 0; c < l->values_len; c++) {
@@ -732,7 +966,7 @@ loadsynthgenerators(synthio_generator *junk,
       return -1;
     }
 
-    if(loadgen(l->values[c]->v.b, &synthio_gens[slot]))
+    if(loadgen(l->values[c]->v.b, &SYNTHIO_GENS[slot]))
       return -1;
 
     slot++;
@@ -741,11 +975,11 @@ loadsynthgenerators(synthio_generator *junk,
   for(c = 0; c < slot; c++) {
     procp = pf_new_process(); 
     // XXX ??
-    procp->space = (char *)synthio_gens[c];
-    synthio_gens[c]->number = c;
+    procp->space = (char *)SYNTHIO_GENS[c];
+    SYNTHIO_GENS[c]->number = c;
   }
 
-  synthio_gencnt = slot;
+  SYNTHIO_GENCNT = slot;
   return 0;
 }
 
@@ -871,14 +1105,17 @@ int loadsynthdevs(synthio_generator *result, struct lp_list *l);
 
 static int loadgen(struct lp_block *b, synthio_generator **result) {
 
-  (*result) = malloc(sizeof(synthio_generator));
-  bzero((*result), sizeof(synthio_generator));
+  (*result) = (synthio_generator *)calloc(1, sizeof(synthio_generator));
 
   //#include "modules/disksim_synthgen_param.c"
   lp_loadparams(result, b, &disksim_synthgen_mod);
 
   (*result)->numblocks = (*result)->sectsperdisk * (*result)->numdisks; 
   (*result)->blksperdisk = (*result)->sectsperdisk / (*result)->blocksize;
+
+#ifdef DEBUG_SYNTHIO
+  dump_synthio_generator( *result );
+#endif
 
   return 0;
 }
@@ -893,8 +1130,7 @@ loadsynthdevs(synthio_generator *result, struct lp_list *l)
   char *name;
   int slot = 0;
 
-  result->devno = malloc(l->values_len * sizeof(int));
-  bzero(result->devno, l->values_len * sizeof(int));
+  result->devno = (int *)calloc(1, l->values_len * sizeof(int));
   
   for(c = 0; c < l->values_len; c++) {
     if(!l->values[c]) continue;
@@ -919,3 +1155,6 @@ loadsynthdevs(synthio_generator *result, struct lp_list *l)
 
   return 0;
 }
+
+// End of file
+

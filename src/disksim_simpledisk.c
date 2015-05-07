@@ -219,7 +219,9 @@ static void simpledisk_send_event_up_path (ioreq_event *curr, double delay)
    int busno;
    int slotno;
 
-   // fprintf (outputfile, "simpledisk_send_event_up_path - devno %d, type %d, cause %d, blkno %d\n", curr->devno, curr->type, curr->cause, curr->blkno);
+#ifdef DEBUG_SIMPLEDISK
+   fprintf (outputfile, "*** %f: simpledisk_send_event_up_path - devno %d, type %d, cause %d, blkno %d\n", simtime, curr->devno, curr->type, curr->cause, curr->blkno);
+#endif
 
    currdisk = getsimpledisk (curr->devno);
 
@@ -273,6 +275,10 @@ void simpledisk_bus_ownership_grant (int devno, ioreq_event *curr, int busno, do
 
    currdisk = getsimpledisk (devno);
 
+#ifdef DEBUG_SIMPLEDISK
+   fprintf (outputfile, "*** %f: simpledisk_bus_ownership_grant - devno %d, type %d, cause %d, blkno %d\n", simtime, curr->devno, curr->type, curr->cause, curr->blkno);
+#endif
+
    tmp = currdisk->buswait;
    while ((tmp != NULL) && (tmp != curr)) {
       tmp = tmp->next;
@@ -298,7 +304,9 @@ void simpledisk_bus_delay_complete (int devno, ioreq_event *curr, int sentbusno)
 
    currdisk = getsimpledisk (devno);
 
-   // fprintf (outputfile, "Entered disk_bus_delay_complete\n");
+#ifdef DEBUG_SIMPLEDISK
+   fprintf (outputfile, "*** %f: simpledisk_bus_delay_complete - devno %d, type %d, cause %d, blkno %d\n", simtime, curr->devno, curr->type, curr->cause, curr->blkno);
+#endif
 
    if (curr == currdisk->buswait) {
       currdisk->buswait = curr->next;
@@ -332,7 +340,9 @@ static void simpledisk_request_complete(ioreq_event *curr)
 {
    simpledisk_t *currdisk;
 
-   // fprintf (outputfile, "Entering simpledisk_request_complete: %12.6f\n", simtime);
+#ifdef DEBUG_SIMPLEDISK
+   fprintf (outputfile, "*** %f: simpledisk_request_complete - devno %d, type %d, cause %d, blkno %d\n", simtime, curr->devno, curr->type, curr->cause, curr->blkno);
+#endif
 
    currdisk = getsimpledisk (curr->devno);
 
@@ -352,7 +362,9 @@ static void simpledisk_bustransfer_complete (ioreq_event *curr)
 {
    simpledisk_t *currdisk;
 
-   // fprintf (outputfile, "Entering simpledisk_bustransfer_complete for disk %d: %12.6f\n", curr->devno, simtime);
+#ifdef DEBUG_SIMPLEDISK
+   fprintf (outputfile, "*** %f: simpledisk_bustransfer_complete - devno %d, type %d, cause %d, blkno %d\n", simtime, curr->devno, curr->type, curr->cause, curr->blkno);
+#endif
 
    currdisk = getsimpledisk (curr->devno);
 
@@ -384,7 +396,9 @@ static void simpledisk_reconnect_done (ioreq_event *curr)
 {
    simpledisk_t *currdisk;
 
-   // fprintf (outputfile, "Entering simpledisk_reconnect_done for disk %d: %12.6f\n", curr->devno, simtime);
+#ifdef DEBUG_SIMPLEDISK
+   fprintf (outputfile, "*** %f: simpledisk_reconnect_done - devno %d, type %d, cause %d, blkno %d\n", simtime, curr->devno, curr->type, curr->cause, curr->blkno);
+#endif
 
    currdisk = getsimpledisk (curr->devno);
 
@@ -420,8 +434,9 @@ static void simpledisk_request_arrive (ioreq_event *curr)
    ioreq_event *intrp;
    simpledisk_t *currdisk;
 
-   // fprintf (outputfile, "Entering simpledisk_request_arrive: %12.6f\n", simtime);
-   // fprintf (outputfile, "simpledisk = %d, blkno = %d, bcount = %d, read = %d\n",curr->devno, curr->blkno, curr->bcount, (READ & curr->flags));
+#ifdef DEBUG_SIMPLEDISK
+   fprintf (outputfile, "*** %f: simpledisk_request_arrive - devno %d, blkno %d, bcount %d, flags 0x%x\n", simtime, curr->devno, curr->blkno, curr->bcount, curr->flags );
+#endif
 
    currdisk = getsimpledisk(curr->devno);
 
@@ -473,7 +488,9 @@ static void simpledisk_access_complete (ioreq_event *curr)
 {
    simpledisk_t *currdisk;
 
-   // fprintf (outputfile, "Entering simpledisk_access_complete: %12.6f\n", simtime);
+#ifdef DEBUG_SIMPLEDISK
+   fprintf (outputfile, "*** %f: simpledisk_access_complete - devno %d, blkno %d, bcount %d, flags 0x%x\n", simtime, curr->devno, curr->blkno, curr->bcount, curr->flags );
+#endif
 
    currdisk = getsimpledisk (curr->devno);
    currdisk->media_busy = FALSE;
@@ -508,7 +525,9 @@ static void simpledisk_disconnect_done (ioreq_event *curr)
 
    currdisk = getsimpledisk (curr->devno);
 
-   // fprintf (outputfile, "Entering simpledisk_disconnect for disk %d: %12.6f\n", currdisk->devno, simtime);
+#ifdef DEBUG_SIMPLEDISK
+   fprintf (outputfile, "*** %f: simpledisk_disconnect_done - devno %d, blkno %d, bcount %d, flags 0x%x\n", simtime, curr->devno, curr->blkno, curr->bcount, curr->flags );
+#endif
 
    addtoextraq((event *) curr);
 
@@ -525,7 +544,9 @@ static void simpledisk_completion_done (ioreq_event *curr)
 {
    simpledisk_t *currdisk = getsimpledisk (curr->devno);
 
-   // fprintf (outputfile, "Entering simpledisk_completion for disk %d: %12.6f\n", currdisk->devno, simtime);
+#ifdef DEBUG_SIMPLEDISK
+   fprintf (outputfile, "*** %f: simpledisk_completion_done - devno %d, blkno %d, bcount %d, flags 0x%x\n", simtime, curr->devno, curr->blkno, curr->bcount, curr->flags );
+#endif
 
    addtoextraq((event *) curr);
 
@@ -557,7 +578,9 @@ static void simpledisk_completion_done (ioreq_event *curr)
 
 static void simpledisk_interrupt_complete (ioreq_event *curr)
 {
-   // fprintf (outputfile, "Entered simpledisk_interrupt_complete - cause %d\n", curr->cause);
+#ifdef DEBUG_SIMPLEDISK
+   fprintf (outputfile, "*** %f: simpledisk_interrupt_complete - devno %d, blkno %d, bcount %d, flags 0x%x, cause %d\n", simtime, curr->devno, curr->blkno, curr->bcount, curr->flags, curr->cause );
+#endif
 
    switch (curr->cause) {
 
@@ -575,6 +598,7 @@ static void simpledisk_interrupt_complete (ioreq_event *curr)
 
       default:
          ddbg_assert2(0, "bad event type");
+         break;
    }
 }
 
@@ -583,8 +607,11 @@ void simpledisk_event_arrive (ioreq_event *curr)
 {
    simpledisk_t *currdisk;
 
+#ifdef DEBUG_SIMPLEDISK
+   fprintf (outputfile, "*** %f: simpledisk_event_arrive - devno %d, blkno %d, bcount %d, flags 0x%x, cause %d\n", simtime, curr->devno, curr->blkno, curr->bcount, curr->flags, curr->cause );
    // fprintf (outputfile, "Entered simpledisk_event_arrive: time %f (simtime %f)\n", curr->time, simtime);
    // fprintf (outputfile, " - devno %d, blkno %d, type %d, cause %d, read = %d\n", curr->devno, curr->blkno, curr->type, curr->cause, curr->flags & READ);
+#endif
 
    currdisk = getsimpledisk (curr->devno);
 
@@ -741,11 +768,9 @@ void simpledisk_setcallbacks ()
 
 static void simpledisk_initialize_diskinfo ()
 {
-   disksim->simplediskinfo = malloc (sizeof(simplediskinfo_t));
-   bzero ((char *)disksim->simplediskinfo, sizeof(simplediskinfo_t));
-   disksim->simplediskinfo->simpledisks = malloc(MAXDEVICES * (sizeof(simpledisk_t)));
+   disksim->simplediskinfo = (struct simpledisk_info *)calloc (1, sizeof(simplediskinfo_t));
+   disksim->simplediskinfo->simpledisks = (struct simpledisk **)calloc(1, MAXDEVICES * (sizeof(simpledisk_t)));
    disksim->simplediskinfo->simpledisks_len = MAXDEVICES;
-   bzero ((char *)disksim->simplediskinfo->simpledisks, (MAXDEVICES * (sizeof(simpledisk_t))));
 }
 
 
@@ -756,9 +781,11 @@ void simpledisk_initialize (void)
    if (disksim->simplediskinfo == NULL) {
       simpledisk_initialize_diskinfo ();
    }
-/*
-fprintf (outputfile, "Entered simpledisk_initialize - numsimpledisks %d\n", numsimpledisks);
-*/
+
+#ifdef DEBUG_SIMPLEDISK
+   fprintf (outputfile, "*** %f: simpledisk_initialize - numsimpledisks %d\n", simtime, numsimpledisks );
+#endif
+
    simpledisk_setcallbacks();
    simpledisk_postpass();
 
@@ -807,11 +834,11 @@ int simpledisk_add(struct simpledisk *d) {
 
   /* note that numdisks must be equal to diskinfo->disks_len */
   disksim->simplediskinfo->simpledisks = 
-    realloc(disksim->simplediskinfo->simpledisks, 
+    (struct simpledisk **)realloc(disksim->simplediskinfo->simpledisks,
 	    2 * c * sizeof(struct simpledisk *));
 
-  bzero(disksim->simplediskinfo->simpledisks + numsimpledisks, 
-	numsimpledisks);
+  bzero(&(disksim->simplediskinfo->simpledisks[numsimpledisks]), 
+	numsimpledisks*sizeof(void*));
 
   disksim->simplediskinfo->simpledisks[c] = d;
   numsimpledisks++;
@@ -828,9 +855,8 @@ struct simpledisk *disksim_simpledisk_loadparams(struct lp_block *b)
 
   if(!disksim->simplediskinfo) simpledisk_initialize_diskinfo();
 
-  result = malloc(sizeof(struct simpledisk));
+  result = (struct simpledisk *)calloc(1, sizeof(struct simpledisk));
   if(!result) return 0;
-  bzero(result, sizeof(struct simpledisk));
   
   num = simpledisk_add(result);
 
@@ -848,13 +874,12 @@ struct simpledisk *disksim_simpledisk_loadparams(struct lp_block *b)
 }
 
 
-struct simpledisk *simpledisk_copy(struct simpledisk *orig) {
-  struct simpledisk *result = malloc(sizeof(struct simpledisk));
-  bzero(result, sizeof(struct simpledisk));
+struct device_header *simpledisk_copy(struct device_header *orig) {
+  struct simpledisk *result = (struct simpledisk *)calloc(1, sizeof(struct simpledisk));
   memcpy(result, orig, sizeof(struct simpledisk));
-  result->queue = ioqueue_copy(orig->queue);
+  result->queue = ioqueue_copy(((struct simpledisk *)orig)->queue);
 
-  return result;
+  return (struct device_header *)result;
 }
 
 void simpledisk_set_syncset (int setstart, int setend)
@@ -993,7 +1018,7 @@ double simpledisk_get_seektime (int devno,
 				double maxtime)
 {
   fprintf(stderr, "device_get_seektime not supported for simpledisk devno %d\n",  devno);
-  assert(0);
+  return 0.0;
 }
 
 /* default simpledisk dev header */
@@ -1001,7 +1026,7 @@ struct device_header simpledisk_hdr_initializer = {
   DEVICETYPE_SIMPLEDISK,
   sizeof(struct simpledisk),
   "unnamed simpledisk",
-  (void *)simpledisk_copy,
+  simpledisk_copy,
   simpledisk_set_depth,
   simpledisk_get_depth,
   simpledisk_get_inbus,
@@ -1021,3 +1046,6 @@ struct device_header simpledisk_hdr_initializer = {
   simpledisk_bus_delay_complete,
   simpledisk_bus_ownership_grant
 };
+
+// End of file
+

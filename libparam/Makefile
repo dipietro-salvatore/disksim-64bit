@@ -34,6 +34,8 @@ all: libparam.a
 	mkdir -p lib include/libparam
 	cp -p libparam.a lib
 	cp -p bitvector.h libparam.h include/libparam
+	chmod 777 mod.pl
+	chmod 777 make_modules_h.pl
 
 FLEX=flex
 BISON=bison
@@ -53,7 +55,7 @@ LIBPARAM_SRC =  util.c libparam.tab.c  lex.libparam.c
 LIBPARAM_OBJ = $(LIBPARAM_SRC:.c=.o)
 
 libparam.a: $(LIBPARAM_OBJ)
-	ar cru $@ $^ 
+	ar crus $@ $^ 
 
 
 dump_tlts: dump_tlts.o libparam.a

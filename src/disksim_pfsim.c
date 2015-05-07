@@ -121,7 +121,7 @@ static void pf_allocate_process_structs()
    process *temp = (process *) DISKSIM_malloc(ALLOCSIZE);
 
    ASSERT(temp != NULL);
-   for (i=0; i<((ALLOCSIZE/sizeof(process))-1); i++) {
+   for (i = 0; i < (int)((ALLOCSIZE/sizeof(process))-1); i++) {
       temp[i].next = &temp[i+1];
    }
    temp[((ALLOCSIZE/sizeof(process))-1)].next = NULL;
@@ -211,17 +211,17 @@ static event * pf_remove_from_process_eventlist (process *procp)
 #endif
 
 
-static void pf_add_to_process_eventlist (process *procp, event *new)
+static void pf_add_to_process_eventlist (process *procp, event *new_event)
 {
-   new->next = procp->eventlist;
-   procp->eventlist = new;
+   new_event->next = procp->eventlist;
+   procp->eventlist = new_event;
 }
 
 
-static void pf_add_to_intrp_eventlist (intr_event *intrp, event *new)
+static void pf_add_to_intrp_eventlist (intr_event *intrp, event *new_event)
 {
-   new->next = intrp->eventlist;
-   intrp->eventlist = new;
+   new_event->next = intrp->eventlist;
+   intrp->eventlist = new_event;
 }
 
 
@@ -248,18 +248,18 @@ static double pf_add_false_idle_time (double length)
 
 static void pf_add_to_pendiolist (process *procp, ioreq_event *curr)
 {
-   ioreq_event *new = (ioreq_event *)getfromextraq();
-   new->time = simtime;
-   new->devno = curr->devno;
-   new->blkno = curr->blkno;
-   new->buf = curr->buf;
-   new->opid = curr->opid;
-   new->tempptr1 = procp;
-   new->tempint2 = -1;
-   new->flags = curr->flags & ~PF_BUF_WANTED;
-   new->prev = NULL;
-   new->next = pendiolist;
-   pendiolist = new;
+   ioreq_event *new_event = (ioreq_event *)getfromextraq();
+   new_event->time = simtime;
+   new_event->devno = curr->devno;
+   new_event->blkno = curr->blkno;
+   new_event->buf = curr->buf;
+   new_event->opid = curr->opid;
+   new_event->tempptr1 = procp;
+   new_event->tempint2 = -1;
+   new_event->flags = curr->flags & ~PF_BUF_WANTED;
+   new_event->prev = NULL;
+   new_event->next = pendiolist;
+   pendiolist = new_event;
 }
 
 
@@ -356,8 +356,9 @@ static int pf_iowait (void *chan, process *procp)
       return(FALSE);
    }
 
-if (pf_printhack)
-fprintf (outputfile, "pf_iowait: chan %p, read %d, crit %d, opid %d, blkno %x\n", tmp->buf, (tmp->flags & READ), (tmp->flags & (TIME_LIMITED|TIME_CRITICAL)), tmp->opid, tmp->blkno);
+#ifdef DEBUG_PFSIM
+	fprintf (outputfile, "pf_iowait: chan %p, read %d, crit %d, opid %d, blkno %x\n", tmp->buf, (tmp->flags & READ), (tmp->flags & (TIME_LIMITED|TIME_CRITICAL)), tmp->opid, tmp->blkno);
+#endif
 
    if (tmp->flags & TIME_LIMITED) {
       if (tmp->flags & READ) {
@@ -381,21 +382,21 @@ fprintf (outputfile, "pf_iowait: chan %p, read %d, crit %d, opid %d, blkno %x\n"
 static void pf_add_cswitch_event (process *procp, process *newprocp, cpu_event *cpu_ev)
 {
    cpu *currcpu = &cpus[(cpu_ev->cpunum)];
-   cswitch_event *new = (cswitch_event *) getfromextraq();
-   new->type = CSWITCH_EVENT;
-   new->newprocp = newprocp;
+   cswitch_event *new_event = (cswitch_event *) getfromextraq();
+   new_event->type = CSWITCH_EVENT;
+   new_event->newprocp = newprocp;
    if (procp != newprocp) {
-      new->time = PF_CSWITCH_TIME;
+      new_event->time = PF_CSWITCH_TIME;
       currcpu->cswitches++;
    } else {
-      new->time = 0.0;
+      new_event->time = 0.0;
    }
-   currcpu->runswitchtime += new->time;
+   currcpu->runswitchtime += new_event->time;
    if (procp) {
-      pf_add_to_process_eventlist(procp, (event *) new);
+      pf_add_to_process_eventlist(procp, (event *) new_event);
    } else {
-      new->next = currcpu->idleevents;
-      currcpu->idleevents = (event *) new;
+      new_event->next = currcpu->idleevents;
+      currcpu->idleevents = (event *) new_event;
    }
 }
 
@@ -434,17 +435,17 @@ void pf_idle_cpu_recheck_dispq (int cpunum)
   ASSERT(cpus[cpunum].current->procp == NULL);
 
    if (cpus[cpunum].idleevents == NULL) {
-      event *new = getfromextraq();
-      new->type = IDLELOOP_EVENT;
-      new->time = PF_IDLE_CHECK_DISPQ_TIME;
-      new->next = cpus[cpunum].idleevents;
-      cpus[cpunum].idleevents = new;
+      event *new_event = getfromextraq();
+      new_event->type = IDLELOOP_EVENT;
+      new_event->time = PF_IDLE_CHECK_DISPQ_TIME;
+      new_event->next = cpus[cpunum].idleevents;
+      cpus[cpunum].idleevents = new_event;
 
       if (cpus[cpunum].current->intrp == NULL) {
 	cpus[cpunum].idletime += simtime - cpus[cpunum].idlestart;
 	cpus[cpunum].falseidletime += pf_add_false_idle_time(simtime - cpus[cpunum].idlestart);
-	cpus[cpunum].current->time = simtime + (cpus[cpunum].scale * new->time);
-	new->time = simtime;
+	cpus[cpunum].current->time = simtime + (cpus[cpunum].scale * new_event->time);
+	new_event->time = simtime;
 	cpus[cpunum].state = CPU_IDLE_WORK;
 	addtointq((event *) cpus[cpunum].current);
       }
@@ -515,8 +516,9 @@ static void pf_handle_sleep_event (sleep_event *curr, cpu_event *cpu_ev)
    process *procp = cpu_ev->procp;
    process *newprocp;
 
-   if (pf_printhack)
-   fprintf (outputfile, "%f\tSLEEP cpu=%d pid=%d chan=%p info=%d iosleep=%d\n", simtime, cpu_ev->cpunum, procp->pid, curr->chan, curr->info, curr->iosleep);
+#ifdef DEBUG_PFSIM
+   fprintf (outputfile, "*** %f: pf_handle_sleep_event SLEEP cpu=%d pid=%d chan=%p info=%d iosleep=%d\n", simtime, cpu_ev->cpunum, procp->pid, curr->chan, curr->info, curr->iosleep);
+#endif
 
    if (pf_iowait(curr->chan, procp)) {
       ASSERT(curr->iosleep > 0);
@@ -571,14 +573,15 @@ static void pf_handle_wakeup_event(wakeup_event *curr, cpu_event *cpu_ev)
 static void pf_handle_ioreq_event (ioreq_event *curr, cpu_event *cpu_ev)
 {
    process *procp = cpu_ev->procp;
-   ioreq_event *new;
+   ioreq_event *new_event;
    ioreq_event *tmp;
 
    io_map_trace_request(curr);
    curr->next = NULL;
 
-   if (pf_printhack)
-   fprintf (outputfile, "%f\tIOREQ cpu=%d opid=%d buf=%p blkno=%x flags=%x, bcount=%d\n", simtime, cpu_ev->cpunum, curr->opid, curr->buf, curr->blkno, curr->flags, curr->bcount);
+#ifdef DEBUG_PFSIM
+   fprintf (outputfile, "*** %f: pf_handle_ioreq_event IOREQ cpu=%d opid=%d buf=%p blkno=%x flags=%x, bcount=%d\n", simtime, cpu_ev->cpunum, curr->opid, curr->buf, curr->blkno, curr->flags, curr->bcount);
+#endif
 
    curr->flags &= ~(TIMED_OUT|HALF_OUT); /* hack to help out ioqueue.c */
 
@@ -591,22 +594,24 @@ static void pf_handle_ioreq_event (ioreq_event *curr, cpu_event *cpu_ev)
       }
    }
    curr->cause = 0;   /* To avoid a stupid problem in logorg.c --- TEMP  */
-   new = (ioreq_event *) io_request(curr);
-   if (new) {
+   new_event = (ioreq_event *) io_request(curr);
+   if (new_event) {
       tmp = (ioreq_event *) procp->eventlist;
-      procp->eventlist = (event *) new;
-      while (new->next) {
-         new = new->next;
+      procp->eventlist = (event *) new_event;
+      while (new_event->next) {
+         new_event = new_event->next;
       }
-      new->next = tmp;
+      new_event->next = tmp;
    }
 }
 
 
 static void pf_handle_ioacc_event (ioreq_event *curr, cpu_event *cpu_ev)
 {
-   if (pf_printhack)
-   fprintf (outputfile, "%f\tIOACC cpu=%d opid=%d blkno=%x\n", simtime, cpu_ev->cpunum, curr->opid, curr->blkno);
+#ifdef DEBUG_PFSIM
+//   if (pf_printhack)
+   fprintf (outputfile, "*** %f: pf_handle_ioacc_event IOACC cpu=%d opid=%d blkno=%x\n", simtime, cpu_ev->cpunum, curr->opid, curr->blkno);
+#endif
 
    io_schedule(curr);
 }
@@ -614,22 +619,24 @@ static void pf_handle_ioacc_event (ioreq_event *curr, cpu_event *cpu_ev)
 
 static void pf_handle_io_internal_event (ioreq_event *curr, cpu_event *cpu_ev)
 {
-   if (pf_printhack)
-   fprintf (outputfile, "%f\tIO INTERNAL cpu=%d type %d opid=%d blkno=%x buf=%p\n", simtime, cpu_ev->cpunum, curr->type, curr->opid, curr->blkno, curr->buf);
+#ifdef DEBUG_PFSIM
+//	if (pf_printhack)
+   fprintf (outputfile, "*** %f: pf_handle_io_internal_event IO INTERNAL cpu=%d type %d opid=%d blkno=%x buf=%p\n", simtime, cpu_ev->cpunum, curr->type, curr->opid, curr->blkno, curr->buf);
+#endif
 
    if (curr->type == IO_REQUEST_ARRIVE) {
-      ioreq_event *new = (ioreq_event *) io_request (curr);
-      if (new) {
+      ioreq_event *new_event = (ioreq_event *) io_request (curr);
+      if (new_event) {
          intr_event *intrp = cpu_ev->intrp;
          ioreq_event *tmp;
          ASSERT (intrp != NULL);
 
          tmp = (ioreq_event *) intrp->eventlist;
-         intrp->eventlist = (event *) new;
-         while (new->next) {
-            new = new->next;
+         intrp->eventlist = (event *) new_event;
+         while (new_event->next) {
+            new_event = new_event->next;
          }
-         new->next = tmp;
+         new_event->next = tmp;
       }
    } else {
       io_internal_event(curr);
@@ -649,8 +656,9 @@ static void pf_handle_intend_event (intend_event *curr, cpu_event *cpu_ev)
    process *procp = cpu_ev->procp;
    cpu *currcpu = &cpus[(cpu_ev->cpunum)];
 
-   if (pf_printhack)
-   fprintf (outputfile, "%f\tINTEND cpu=%d\n", simtime, cpu_ev->cpunum);
+#ifdef DEBUG_PFSIM
+   fprintf (outputfile, "*** %f: pf_handle_intend_event INTEND cpu=%d\n", simtime, cpu_ev->cpunum);
+#endif
 
    cpu_ev->intrp = (intr_event *) intrp->next;
    currcpu->state = intrp->oldstate;
@@ -687,9 +695,9 @@ static void pf_handle_intend_event (intend_event *curr, cpu_event *cpu_ev)
 
 static void pf_handle_synthio_event (event *curr, cpu_event *cpu_ev)
 {
-/*
-fprintf (outputfile, "%f, SYNTHIO_EVENT\n", simtime);
-*/
+#ifdef DEBUG_PFSIM
+   fprintf (outputfile, "*** %f, SYNTHIO_EVENT\n", simtime);
+#endif
    curr->time = 0.0;
    curr->next = cpu_ev->procp->eventlist;
    cpu_ev->procp->eventlist = curr;
@@ -699,10 +707,10 @@ fprintf (outputfile, "%f, SYNTHIO_EVENT\n", simtime);
 
 static void pf_handle_event (event *curr, cpu_event *cpu_ev)
 {
-  if (pf_printhack) {
-    fprintf (outputfile, "%f, entered pf_handle_event with event type %d\n", simtime, curr->type);
+#ifdef DEBUG_PFSIM
+    fprintf (outputfile, "*** %f: Entered pf_handle_event with event type %d\n", simtime, curr->type);
     fflush(outputfile);
-  }
+#endif
 
   switch (curr->type) {
   case IDLELOOP_EVENT:
@@ -747,10 +755,10 @@ static void pf_handle_event (event *curr, cpu_event *cpu_ev)
 
 static void pf_handle_io_intr_arrive (intr_event *intrp, cpu_event *cpu_ev)
 {
-   if (pf_printhack) {
+#ifdef DEBUG_PFSIM
    ioreq_event *tmp = (ioreq_event *) intrp->infoptr;
-fprintf (outputfile, "%f\tIO_INTERRUPT cpu %d  cause %d  buf %p\n", simtime, cpu_ev->cpunum, tmp->cause, tmp->buf);
-   }
+    fprintf (outputfile, "%f\tIO_INTERRUPT cpu %d  cause %d  buf %p\n", simtime, cpu_ev->cpunum, tmp->cause, tmp->buf);
+#endif
 
    io_interrupt_arrive ((ioreq_event *)intrp);
 }
@@ -759,23 +767,25 @@ fprintf (outputfile, "%f\tIO_INTERRUPT cpu %d  cause %d  buf %p\n", simtime, cpu
 static void pf_handle_clock_intr_arrive (intr_event *intrp, cpu_event *cpu_ev)
 {
    intr_event *nextclock;
-   intend_event *new;
+   intend_event *new_event;
    curlbolt++;
 
-if (pf_printhack)
-fprintf (outputfile, "%f,   CLOCK_INTERRUPT - new lbolt %d\n", simtime, curlbolt);
+#ifdef DEBUG_PFSIM
+//if (pf_printhack)
+   fprintf (outputfile, "*** %f: pf_handle_clock_intr_arrive CLOCK_INTERRUPT - new lbolt %d\n", simtime, curlbolt);
+#endif
 
    ASSERT (intrp->eventlist == NULL);
-   new = (intend_event *) getfromextraq();
-   new->type = INTEND_EVENT;
-   new->vector = intrp->type;
+   new_event = (intend_event *) getfromextraq();
+   new_event->type = INTEND_EVENT;
+   new_event->vector = intrp->type;
    if ((curlbolt % PF_INTER_LONG_CLOCKS) == 0) {
       io_tick();
-      new->time = PF_LONG_CLOCK_TIME;
+      new_event->time = PF_LONG_CLOCK_TIME;
    } else {
-      new->time = PF_SHORT_CLOCK_TIME;
+      new_event->time = PF_SHORT_CLOCK_TIME;
    }
-   pf_add_to_intrp_eventlist(intrp, (event *)new);
+   pf_add_to_intrp_eventlist(intrp, (event *)new_event);
 
    nextclock = (intr_event *) getfromextraq();
    nextclock->type = INTR_EVENT;
@@ -792,8 +802,10 @@ void pf_handle_intr_event (intr_event *intrp, int cpunum)
    cpu_event *cpu_ev = currcpu->current;
    process *procp = cpu_ev->procp;
 
-   if (pf_printhack)
-   fprintf (outputfile, "%f\tINTR cpu=%d vector=%d cpustate=%d\n", simtime, cpunum, intrp->vector, currcpu->state);
+#ifdef DEBUG_PFSIM
+//   if (pf_printhack)
+   fprintf (outputfile, "*** %f: pf_handle_intr_event INTR cpu=%d vector=%d cpustate=%d\n", simtime, cpunum, intrp->vector, currcpu->state);
+#endif
 
    intrp->runtime = 0.0;
    intrp->flags = 0;
@@ -842,16 +854,16 @@ static void pf_handle_cpu_event (cpu_event *curr)
    event *tmp;
    cpu *currcpu = &cpus[(curr->cpunum)];
 
-   /*
-    * if (simtime > 29000.0) {
-    *   pf_printhack = 1;
-    * }
-    */
-
-   if(pf_printhack) {
-     fprintf (outputfile, "Entered handle_cpu_event: %d\n", curr->type);
+#ifdef DEBUG_PFSIM
+   //if (simtime > 0.0) {
+   //  pf_printhack = 1;
+   //}
+    
+//   if(pf_printhack) {
+     fprintf (outputfile, "*** %f: Entered pf_handle_cpu_event: type %d, cpu %d\n", simtime, curr->type, curr->cpunum);
      fflush(outputfile);
-   }
+//   }
+#endif
 
    if(curr->intrp) {
       tmp = curr->intrp->eventlist;
@@ -905,9 +917,10 @@ static void pf_handle_cpu_event (cpu_event *curr)
 void pf_internal_event (event *curr)
 {
    ASSERT(curr != NULL);
-/*
-fprintf (outputfile, "%f: pf_internal_event entered with event type %d\n", curr->time, curr->type);
-*/
+
+#ifdef DEBUG_PFSIM
+   fprintf (outputfile, "*** %f: pf_internal_event entered with event type %d\n", curr->time, curr->type);
+#endif
    ASSERT1(curr->type == CPU_EVENT, "curr->type", curr->type);
    pf_handle_cpu_event((cpu_event *) curr);
 }
@@ -964,61 +977,68 @@ void pf_setcallbacks()
 
 void pf_initialize (int seedvalue)
 {
-   int i = 0;
-   process *procp = NULL;
-   intr_event *intrp;
-/*
-fprintf (outputfile, "Entered pf_initialize - numcpus %d, pfscale %f, pfinit %d\n", numcpus, pfscale, (pfinitfile != NULL));
-*/
-   StaticAssert (sizeof(cpu_event) <= DISKSIM_EVENT_SIZE);
-   StaticAssert (sizeof(intend_event) <= DISKSIM_EVENT_SIZE);
-   StaticAssert (sizeof(cswitch_event) <= DISKSIM_EVENT_SIZE);
-   StaticAssert (sizeof(idleloop_event) <= DISKSIM_EVENT_SIZE);
-   StaticAssert (sizeof(sleep_event) <= DISKSIM_EVENT_SIZE);
-   StaticAssert (sizeof(wakeup_event) <= DISKSIM_EVENT_SIZE);
+    int i = 0;
+    process *procp = NULL;
+    intr_event *intrp;
 
-   stat_initialize(statdeffile, "Response time", &timecritrespstats);
-   stat_initialize(statdeffile, "Response time", &timelimitrespstats);
-   stat_initialize(statdeffile, "Response time", &timenoncritrespstats);
-   pf_cpu_initialize();
+#ifdef DEBUG_PFSIM
+    fprintf (outputfile, "*** %f: Entered pf_initialize - numcpus %d, pfscale %f\n", simtime, numcpus, pfscale );
+#endif
 
-   intrp = (intr_event *) getfromextraq();
-   intrp->type = INTR_EVENT;
-   intrp->time = PF_INTER_CLOCK_TIME;
-   intrp->vector = CLOCK_INTERRUPT;
-   intrp->eventlist = NULL;
-   addtointq((event *) intrp);
+    StaticAssert (sizeof(cpu_event) <= DISKSIM_EVENT_SIZE);
+    StaticAssert (sizeof(intend_event) <= DISKSIM_EVENT_SIZE);
+    StaticAssert (sizeof(cswitch_event) <= DISKSIM_EVENT_SIZE);
+    StaticAssert (sizeof(idleloop_event) <= DISKSIM_EVENT_SIZE);
+    StaticAssert (sizeof(sleep_event) <= DISKSIM_EVENT_SIZE);
+    StaticAssert (sizeof(wakeup_event) <= DISKSIM_EVENT_SIZE);
 
-   DISKSIM_srand48(seedvalue);
-   procp = synthlist;
-   while(procp) {
-     if(procp->space) {
-       synthio_initialize_generator(procp);
-     }
-     procp = procp->next;
-   }
- 
-   // initial distribution of processes to cpus
-   pf_dispatcher_init(synthlist);
-   synthlist = NULL;
+    stat_initialize(statdeffile, "Response time", &timecritrespstats);
+    stat_initialize(statdeffile, "Response time", &timelimitrespstats);
+    stat_initialize(statdeffile, "Response time", &timenoncritrespstats);
+    pf_cpu_initialize();
 
-   for (i = 0; i < numcpus; i++) {
-     fprintf (outputfile, "Kicking off cpu #%d\n", i);
+    intrp = (intr_event *) getfromextraq();
+    intrp->type = INTR_EVENT;
+    intrp->time = PF_INTER_CLOCK_TIME;
+    intrp->vector = CLOCK_INTERRUPT;
+    intrp->eventlist = NULL;
+    addtointq((event *) intrp);
 
-     if(cpus[i].current->procp) {
-       cpus[i].current->procp->active = 1;
-       cpus[i].current->time = cpus[i].scale * 
-	 pf_get_time_to_next_process_event(cpus[i].current->procp);
+    DISKSIM_srand48(seedvalue);
+    procp = synthlist;
+    while(procp) {
+        if(procp->space) {
+            synthio_initialize_generator(procp);
+        }
+        procp = procp->next;
+    }
 
-       addtointq((event *)cpus[i].current);
-         cpus[i].state = CPU_PROCESS;
-	 fprintf (outputfile, "First event occurs at time %f\n", 
-		  cpus[i].current->time);
-     } 
-     else {
-       cpus[i].state = CPU_IDLE;
-     }
-   }
+    // initial distribution of processes to cpus
+    pf_dispatcher_init(synthlist);
+    synthlist = NULL;
+
+    for (i = 0; i < numcpus; i++) {
+        fprintf (outputfile, "%f: pf_initialize  Kicking off cpu #%d\n", simtime, i);
+
+        if(cpus[i].current->procp) {
+            cpus[i].current->procp->active = 1;
+            cpus[i].current->time = cpus[i].scale *
+                    pf_get_time_to_next_process_event(cpus[i].current->procp);
+
+            addtointq((event *)cpus[i].current);
+            cpus[i].state = CPU_PROCESS;
+            fprintf (outputfile, "%f: pf_initialize  Event occurs at time %f, type %s (%d), cpunum %d\n",
+                    simtime,
+                    cpus[i].current->time,
+                    getEventString(cpus[i].current->type),
+                    cpus[i].current->type,
+                    cpus[i].current->cpunum
+            );
+        }
+        else {
+            cpus[i].state = CPU_IDLE;
+        }
+    }
 }
 
 
@@ -1027,7 +1047,7 @@ int disksim_pf_loadparams(struct lp_block *b) {
   pf_info_t *pf_info;
 
   if(!disksim->pf_info) {
-    pf_info = DISKSIM_malloc (sizeof(pf_info_t));
+    pf_info = (pf_info_t *)DISKSIM_malloc (sizeof(pf_info_t));
     if(!pf_info) return 0;
     bzero ((char *)pf_info, sizeof(pf_info_t));
     disksim->pf_info = pf_info;
@@ -1046,7 +1066,7 @@ int disksim_pf_stats_loadparams(struct lp_block *b) {
   pf_info_t *pf_info;
 
   if(!disksim->pf_info) {
-    pf_info = DISKSIM_malloc (sizeof(pf_info_t));
+    pf_info = (pf_info_t *)DISKSIM_malloc (sizeof(pf_info_t));
     if(!pf_info) return 0;
     bzero ((char *)pf_info, sizeof(pf_info_t));
     disksim->pf_info = pf_info;
@@ -1307,17 +1327,17 @@ static void pf_print_pf_stats (int startcpu, int stopcpu)
    }
    fprintf(outputfile, "%sTotal idle milliseconds:      %f\n", cpustr, idletime);
    fprintf(outputfile, "%sIdle time per processor:      %f\n", cpustr, (idletime / (double) cpucnt));
-   fprintf(outputfile, "%sPercentage idle cycles:       %f\n", cpustr, ((double) 100.0 * idletime / ((simtime - warmuptime) * (double) cpucnt)));
+   fprintf(outputfile, "%sPercentage idle cycles:       %f\n", cpustr, ((double) 100.0 * idletime / ((simtime - WARMUPTIME) * (double) cpucnt)));
    fprintf(outputfile, "%sTotal false idle ms:          %f\n", cpustr, falseidletime);
    fprintf(outputfile, "%sFalse idle time per CPU:      %f\n", cpustr, (falseidletime / (double) cpucnt));
-   fprintf(outputfile, "%sPercentage false idle cycles: %f\n", cpustr, ((double) 100.0 * falseidletime / ((simtime - warmuptime) * (double) cpucnt)));
+   fprintf(outputfile, "%sPercentage false idle cycles: %f\n", cpustr, ((double) 100.0 * falseidletime / ((simtime - WARMUPTIME) * (double) cpucnt)));
    fprintf(outputfile, "%sTotal idle work ms:           %f\n", cpustr, idleworktime);
    fprintf(outputfile, "%sContext Switches: %d\n", cpustr, cswitches);
    fprintf(outputfile, "%sTime spent context switching: %f\n", cpustr, runswitchtime);
-   fprintf(outputfile, "%sPercentage switching cycles:  %f\n", cpustr, ((double) 100.0 * runswitchtime / ((simtime - warmuptime) * (double) cpucnt)));
+   fprintf(outputfile, "%sPercentage switching cycles:  %f\n", cpustr, ((double) 100.0 * runswitchtime / ((simtime - WARMUPTIME) * (double) cpucnt)));
    fprintf(outputfile, "%sNumber of interrupts: %d\n", cpustr, numintrs);
    fprintf(outputfile, "%sTotal time in interrupts: %.3f\n", cpustr, runintr);
-   fprintf(outputfile, "%sPercentage interrupt cycles:  %f\n", cpustr, ((double) 100.0 * runintr / ((simtime - warmuptime) * (double) cpucnt)));
+   fprintf(outputfile, "%sPercentage interrupt cycles:  %f\n", cpustr, ((double) 100.0 * runintr / ((simtime - WARMUPTIME) * (double) cpucnt)));
    fprintf(outputfile, "%sTime-Critical request count:      %d\n", cpustr, stat_get_count(&timecritrespstats));
    sprintf(cpustr2, "%sTime-Critical ", cpustr);
    stat_print(&timecritrespstats, cpustr2);
@@ -1363,3 +1383,4 @@ void pf_printstats()
 */
 }
 
+// End of file

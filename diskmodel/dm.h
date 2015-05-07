@@ -43,6 +43,9 @@ extern "C" {
 #include <diskmodel/dm_types.h>
 #endif 
 
+//#define DEBUG_LAYOUT_G1_LOAD
+
+
 // mostly opaque; interface through function pointers;
 // avoid type fields and switch statements
 struct dm_disk_if;

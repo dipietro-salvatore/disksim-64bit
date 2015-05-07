@@ -319,7 +319,7 @@ dm_mech_g1_seek_init(struct dm_disk_if *d) {
   if ((m->seektype == SEEK_3PT_CURVE) && 
       (m->seekavg > m->seekone)) 
     {
-      fprintf (outputfile, "seekone %lld, seekavg %lld, seekfull %lld\n", 
+      fprintf (outputfile, "seekone %ld, seekavg %ld, seekfull %ld\n",
 	       m->seekone, m->seekavg, m->seekfull);
 
       tmpfull = m->seekfull;

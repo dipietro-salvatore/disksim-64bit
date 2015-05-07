@@ -107,6 +107,8 @@
 #include "config.h"
 #include "disksim_cache.h"
 
+// Note: hurst_r maybe need to move these defines to the top level h file and rewrite code
+
 /* cache event types */
 
 #define CACHE_EVENT_IOREQ               0
@@ -118,7 +120,28 @@
 #define CACHE_EVENT_IDLEFLUSH_READ      6
 #define CACHE_EVENT_IDLEFLUSH_FLUSH     7
 
-/* cache write schemes */
+// cache write schemes (policies)
+// When a system writes a datum to cache, it must at some point write that datum to backing store as well.
+// The timing of this write is controlled by what is known as the write policy.
+//
+// There are two basic writing approaches:
+//
+//    Write-through - Write is done synchronously both to the cache and to the backing store.
+//    Write-back (or Write-behind) - Initially, writing is done only to the cache. The write to the backing store is postponed until the cache blocks containing the data are about to be modified/replaced by new content.
+//
+// Write-back cache is more complex to implement, since it needs to track which of its locations have been written over, and mark them as dirty for later writing to the backing store. The data in these locations are written back to the backing store only when they are evicted from the cache, an effect referred to as a lazy write. For this reason, a read miss in a write-back cache (which requires a block to be replaced by another) will often require two memory accesses to service: one to write the replaced data from the cache back to the store, and then one to retrieve the needed datum.
+// Other policies may also trigger data write-back. The client may make many changes to a datum in the cache, and then explicitly notify the cache to write back the datum.
+// Since on write operations, no actual data are needed back, there are two approaches for situations of write-misses:
+//
+//    Write allocate (aka Fetch on write) - Datum at the missed-write location is loaded to cache, followed by a write-hit operation. In this approach, write misses are similar to read-misses.
+//    No-write allocate (aka Write-no-allocate, Write around) - Datum at the missed-write location is not loaded to cache, and is written directly to the backing store. In this approach, only system reads are being cached.
+//
+// Both write-through and write-back policies can use either of these write-miss policies, but usually they are paired in this way:[2]
+//
+//    A write-back cache uses write allocate, hoping for subsequent writes (or even reads) to the same location, which is now cached.
+//    A write-through cache uses no-write allocate. Here, subsequent writes have no advantage, since they still need to be written directly to the backing store.
+//
+// Entities other than the cache may change the data in the backing store, in which case the copy in the cache may become out-of-date or stale. Alternatively, when the client updates the data in the cache, copies of those data in other caches will become stale. Communication protocols between the cache managers which keep the data consistent are known as coherency protocols.
 
 #define CACHE_WRITE_MIN         1
 #define CACHE_WRITE_SYNCONLY    1

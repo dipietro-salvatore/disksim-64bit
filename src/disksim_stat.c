@@ -192,6 +192,10 @@ void stat_update (statgen *statptr, double value)
       }
       statptr->smalldistvals[i]++;
    }
+
+#ifdef DEBUG_STAT
+   fprintf( outputfile, "*** %f: stat_update  statptr %p, count %d, value %f, maxval %f, runval %f, runsquares %f\n", simtime, statptr, statptr->count, value, statptr->maxval, statptr->runval, statptr->runsquares );
+#endif
 }
 
 
@@ -475,7 +479,7 @@ void stat_initialize (FILE *statdef_file, char *statdesc, statgen *statptr)
    statptr->runval = 0.0;
    statptr->runsquares = 0.0;
    statptr->maxval = 0.0;
-   statptr->statdesc = DISKSIM_malloc (strlen(statdesc)+1);
+   statptr->statdesc = (char *)DISKSIM_malloc (strlen(statdesc)+1);
    strcpy (statptr->statdesc, statdesc);
    for (i=0; i<DISTSIZE; i++) {
       statptr->distbrks[i] = 0;
