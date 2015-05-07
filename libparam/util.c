@@ -937,12 +937,15 @@ int lp_add_param(struct lp_param ***b, int *plen,
       (*b)[c] = p;
       break;
     }
+    printf("%d: name = %s\n", c, (*b)[c]->name);
   }
-  if(c == *plen) {
+  fflush(stdout);
+  if(c == *plen) { // BONK
     /* didn't find a free slot -- double the array */
     int newlen = 2 * (*plen) + 1;
-    (*b) = realloc((*b), newlen * sizeof(int *));
-    bzero((int *)(*b) + *plen, ((*plen) + 1) * sizeof(int*));
+    struct lp_param **new = calloc(newlen, sizeof(struct lp_param *));
+    memcpy(new, *b, (*plen) * sizeof(struct lp_param *));
+    (*b) = new;
     (*b)[(*plen)] = p;
     *plen = newlen;
   }
@@ -982,7 +985,7 @@ void lp_init_typetbl(void) {
 
   for(c = 0; c < lp_max_mod; c++) {
 
-    lp_typetbl[c] = malloc(sizeof(struct lp_subtype));
+    lp_typetbl[c] = calloc(sizeof(struct lp_subtype),1);
     bzero(lp_typetbl[c], sizeof(struct lp_subtype));
     lp_typetbl[c]->sub = strdup(lp_modules[c]->name);
   }
@@ -1367,9 +1370,20 @@ lp_search_path(char *cwd, char *name)
   struct stat s;
   int i;
   
-  if(name[0] == '/')
-    if(stat(name, &s))
-      goto fail;
+#ifndef _WIN32
+  if(name[0] == '/'){
+     if(stat(name, &s))
+         goto fail;
+     else
+         goto succ;
+ }
+#else
+  if(name[0] == '\\'){
+      if(stat(name, &s))
+         goto fail;
+      else
+         goto succ;
+  }
 
   snprintf(cand, LP_PATH_MAX, "%s/%s", cwd, name);
 

@@ -150,7 +150,7 @@ lp_new_param(char *name, char *source, struct lp_value *v)
 {
   struct lp_param *result = calloc(1, sizeof(struct lp_param));
   result->source_file = source;
-  result->name = strdup(name);
+  result->name = name;
   result->v = v;
   
 
@@ -1182,8 +1182,8 @@ int *lp_override_inst(struct lp_block *spec,
   return result; 
 }
 
+
 extern void libparamparse(void);
-extern void libparamlex(void);
 
 int lp_loadfile(FILE *in, 
 		struct lp_tlt ***tlts, 

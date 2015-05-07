@@ -445,7 +445,7 @@ void ssd_alloc_queues(ssd_t *t)
 
 void ssd_initialize (void)
 {
-//    static print1 = 1;
+    static print1 = 1;
    int i, j;
 
    if (disksim->ssdinfo == NULL) {

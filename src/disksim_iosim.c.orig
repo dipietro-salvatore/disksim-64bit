@@ -351,7 +351,10 @@ fprintf (outputfile, "devno %d, depth %d, currbus %d, inslotno %d, master %d\n",
    slotpath->byte[depth] = (inslotno & 0x0F) | (outslotno << 4);
 }
 
-static int iosim_load_map(struct lp_block *b, int64_t n) {
+
+
+
+static int iosim_load_map(struct lp_block *b, int n) {
   int c;
   int i = 0;
   char *s = 0; 
