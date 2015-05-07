@@ -38,9 +38,13 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <unistd.h>
 
+#ifndef WIN32
 #include <unistd.h>
+#else
+#include <io.h>
+#endif
+
 #include <fcntl.h>
 
 #include <libgen.h>
@@ -1215,15 +1219,26 @@ int lp_loadfile(FILE *in,
   overrides_len = cli_overrides_len;
 
   // do the searchpath
+#ifdef WIN32
+  lp_sp = strdup(getenv("LP_PATH"));
+#else
   lp_sp = getenv("LP_PATH");
+#endif
   if(lp_sp) {
     char *p = lp_sp;
     char *colon;
     
     lp_searchpath = calloc(LP_MAX_SP, sizeof(char*));
+#ifdef WIN32
+    lp_searchpath_len = 0;
+#endif
 
     while(*p) {
+#ifdef _WIN32 /* colons can occur in win32 filenames, so use semicolon separator */
+	  colon = strchr(p,';');
+#else
       colon = strchr(p, ':');
+#endif
       if(colon) {
 	char *next;
 
@@ -1241,6 +1256,11 @@ int lp_loadfile(FILE *in,
     }
   }
 
+#ifdef WIN32
+  free(lp_sp);
+  lp_sp = NULL;
+#endif
+
   // this creates a fresh array every time its run so caller 
   // is responsible for freeing it
   lp_tlts = 0;
@@ -1248,17 +1268,20 @@ int lp_loadfile(FILE *in,
   
   fflush(stdout);
   stdout_save = dup(1);
+#ifndef WIN32
   devnull = open("/dev/null", O_RDONLY);
   dup2(devnull, 1);
+#endif
 
   libparamparse();
 
   fflush(stdout);
-  dup2(stdout_save, 1);
 
+#ifndef WIN32
+  dup2(stdout_save, 1);
   close(devnull);
   close(stdout_save);
-
+#endif
 
   if(tlts) {
     *tlts = lp_tlts;
@@ -1367,25 +1390,46 @@ char *
 lp_search_path(char *cwd, char *name)
 {
   char *cand = calloc(LP_PATH_MAX, sizeof(char));
+#ifdef _WIN32
+  struct _stat s;
+#else
   struct stat s;
+#endif
   int i;
   
 #ifndef _WIN32
   if(name[0] == '/'){
-     if(stat(name, &s))
-         goto fail;
-     else
-         goto succ;
- }
-#else
-  if(name[0] == '\\'){
-      if(stat(name, &s))
-         goto fail;
-      else
-         goto succ;
+    if(stat(name, &s))
+      goto fail;
+    else
+      goto succ;
   }
 
   snprintf(cand, LP_PATH_MAX, "%s/%s", cwd, name);
+  
+#else
+  if(name[0] == '\\'){
+    if(stat(name, &s))
+      goto fail;
+    else
+      goto succ;
+  }
+
+  if (strcmp(cwd, "") == 0)
+      cwd = ".";
+  
+  snprintf(cand, LP_PATH_MAX, "%s\\%s", cwd, name);
+
+  /* use \ separator instead of / */
+    {
+        char *sep = cand;
+        while (*sep)
+        {
+            if (*sep == '/') *sep = '\\';
+            sep++;
+        }
+    }
+#endif
 
   if(!stat(cand, &s))
     goto succ;

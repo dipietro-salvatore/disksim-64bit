@@ -78,7 +78,7 @@ $(MEMS_OBJ): %.o: %.c
 	$(CC) -c $(CFLAGS) $< -o $@
 
 mems_seektest: mems_seektest.o libmems_internals.a
-	$(CC) -o $@ mems_seektest.o $(LDFLAGS) $(CFLAGS) -lmems_internals
+	$(CC) -o $@ mems_seektest.o $(CFLAGS) -lmems_internals $(LDFLAGS)
 
 libmems_internals.a: mems_internals.o mems_piecewise_seek.o mems_hong_seek.o
 	ar cru $@ mems_internals.o mems_piecewise_seek.o mems_hong_seek.o

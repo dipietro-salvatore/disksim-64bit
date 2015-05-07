@@ -33,6 +33,7 @@ FLEX = flex
 include .paths
 
 LDFLAGS = -lm -L. -ldisksim $(DISKMODEL_LDFLAGS) $(MEMSMODEL_LDFLAGS) \
+                            $(SSDMODEL_LDFLAGS) \
                             $(LIBPARAM_LDFLAGS) $(LIBDDBG_LDFLAGS) 
 
 HP_FAST_OFLAGS = +O4
@@ -41,7 +42,7 @@ FREEBLOCKS_OFLAGS =
 DEBUG_OFLAGS = -g -DASSERTS # -DDEBUG=1
 PROF_OFLAGS = -g -DASSERTS -p
 GPROF_OFLAGS = -g -DASSERTS -pg
-CFLAGS = -I. $(DISKMODEL_CFLAGS) $(LIBPARAM_CFLAGS) $(LIBDDBG_CFLAGS) $(DEBUG_OFLAGS) $(FREEBLOCKS_OFLAGS) $(MEMSMODEL_CFLAGS) -D_INLINE 
+CFLAGS = -I. $(DISKMODEL_CFLAGS) $(LIBPARAM_CFLAGS) $(LIBDDBG_CFLAGS) $(DEBUG_OFLAGS) $(FREEBLOCKS_OFLAGS) $(MEMSMODEL_CFLAGS) $(SSDMODEL_CFLAGS) -D_INLINE 
 
 FBSYSSIM_OFLAGS = -O6 -fomit-frame-pointer -fexpensive-optimizations -fschedule-insns2
 
@@ -61,10 +62,10 @@ ifeq ($(MODULEDEPS),)
 MODULEDEPS = modules
 endif
 
-all: disksim rms hplcomb syssim
+all: disksim rms hplcomb physim
 
 clean:
-	rm -f TAGS *.o disksim syssim rms hplcomb core libdisksim.a
+	rm -f TAGS *.o disksim physim rms hplcomb core libdisksim.a
 	$(MAKE) -C modules clean
 
 realclean: clean
@@ -125,10 +126,10 @@ libdisksim.a: $(MODULEDEPS) $(DISKSIM_OBJ) disksim_interface.o
 	cp libdisksim.a ../lib
 
 disksim : $(MODULEDEPS) libdisksim.a disksim_main.o 
-	$(CC) $(CFLAGS) -o $@ disksim_main.o $(LDFLAGS)
+	$(CC) $(CFLAGS) -o $@ disksim_main.o $(LDFLAGS) -lm
 
-syssim: syssim_driver.o libdisksim.a
-	$(CC) $(CFLAGS) -o $@ syssim_driver.o disksim_interface.o $(LDFLAGS)
+physim: physim_driver.o libdisksim.a
+	$(CC) $(CFLAGS) -o $@ physim_driver.o disksim_interface.o $(LDFLAGS) -lm
 
 ########################################################################
 

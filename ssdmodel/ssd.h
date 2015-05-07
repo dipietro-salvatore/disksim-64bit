@@ -127,7 +127,7 @@ typedef struct _ssd_element_metadata {
     int *lba_table;                 // a table mapping the lba to the physical pages
                                     // on the chip.
 
-    unsigned  char *free_blocks;              // each bit indicates whether a block in the
+    unsigned char *free_blocks;              // each bit indicates whether a block in the
                                     // ssd_element is free or in use. number of bits
                                     // in free_blocks is given by
                                     // (struct ssd*)->params.blocks_per_element
