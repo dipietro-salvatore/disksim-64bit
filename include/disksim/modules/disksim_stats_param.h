@@ -9,26 +9,6 @@ extern"C"{
 struct dm_disk_if;
 
 /* prototype for disksim_stats param loader function */
-int disksim_bus_stats_loadparams(struct lp_block *b);
-
-
-/* prototype for disksim_stats param loader function */
-int disksim_ctlr_stats_loadparams(struct lp_block *b);
-
-
-/* prototype for disksim_stats param loader function */
-int disksim_device_stats_loadparams(struct lp_block *b);
-
-
-/* prototype for disksim_stats param loader function */
-int disksim_iodriver_stats_loadparams(struct lp_block *b);
-
-
-/* prototype for disksim_stats param loader function */
-int disksim_pf_stats_loadparams(struct lp_block *b);
-
-
-/* prototype for disksim_stats param loader function */
 int disksim_stats_loadparams(struct lp_block *b);
 
 typedef enum {

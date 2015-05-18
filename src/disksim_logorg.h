@@ -307,10 +307,6 @@ logorg *getlogorgbyname(logorg **logorgs,
 			int *n);
 
 void logorg_cleanup(logorg *);
-int logorg_addr(logorg *result, char *s);
-int logorg_distn(logorg *result, char *s);
-int logorg_redun(logorg *result, char *s);
-int getlogorgdevs(logorg *result, struct lp_list *l);
 
 #endif  /* DISKSIM_LOGORG_H */
 

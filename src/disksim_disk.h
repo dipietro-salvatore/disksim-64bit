@@ -101,11 +101,6 @@
 #ifndef DISKSIM_DISK_H
 #define DISKSIM_DISK_H
 
-using namespace std;
-
-#include <map>
-
-
 #include "disksim_stat.h"
 #include "disksim_iosim.h"
 #include "disksim_ioqueue.h"
@@ -120,13 +115,13 @@ typedef enum {
   DISK_WAIT_FOR_CONTROLLER = 3
 } disk_state_t;
 
-// Disk buffer states -- status of the data in the cache
+// Disk buffer states -- media xfer to/from seg
 typedef enum {
-  BUFFER_EMPTY             = 1,  // buffer empty - segment descriptor available
-  BUFFER_CLEAN             = 2,  // buffer data same as data on disk
-  BUFFER_DIRTY             = 3,  // buffer data is modified and not written to disk
-  BUFFER_READING           = 4,  // buffer activity is READING
-  BUFFER_WRITING           = 5,  // buffer activity is WRITING
+  BUFFER_EMPTY             = 1,
+  BUFFER_CLEAN             = 2,
+  BUFFER_DIRTY             = 3,
+  BUFFER_READING           = 4,
+  BUFFER_WRITING           = 5,
 } disk_buffer_state_t;
 
 // bus xfer to/from seg
@@ -140,27 +135,30 @@ typedef enum {
 // Disk buffer content match types 
 typedef enum {
   BUFFER_COLLISION         = -1,
-  BUFFER_NOMATCH           = 0,
-  BUFFER_WHOLE             = 1,    // read or write
-  BUFFER_PARTIAL           = 2,    // read
-  BUFFER_PREPEND           = 3,    // write - buffer partial front
-  BUFFER_APPEND            = 4,    // write - buffer partial end
-  BUFFER_OVERLAP           = 5     // write - data fits within segment
+  BUFFER_NOMATCH	   = 0,
+  BUFFER_WHOLE	           = 1,     // read 
+  BUFFER_PARTIAL	   = 2,     // read 
+  BUFFER_PREPEND           = 3,     // write 
+  BUFFER_APPEND            = 4     // write 
 } disk_cache_hit_t;
 
+/* Extra disk buffer flag variable */
+/* *** MAKE SURE THIS DOESN"T CONFLICT WITH ANY FLAGS IN global.h *** */
+
+#define BUFFER_BACKGROUND	0x10000000
 
 /* Disk buffer continuous read types */
 typedef enum {
-  BUFFER_NO_READ_AHEAD          = 0,
-  BUFFER_READ_UNTIL_TRACK_END   = 1,
-  BUFFER_READ_UNTIL_CYL_END     = 2,
-  BUFFER_READ_UNTIL_SEG_END     = 3,
+  BUFFER_NO_READ_AHEAD		= 0,
+  BUFFER_READ_UNTIL_TRACK_END	= 1,
+  BUFFER_READ_UNTIL_CYL_END	= 2,
+  BUFFER_READ_UNTIL_SEG_END	= 3,
   BUFFER_DEC_PREFETCH_SCHEME    = 4
 } disk_cont_read_t;
 
 /* Disk request flags */
-#define SEG_OWNED                       0x00000001      // has cache segment attached
-#define HDA_OWNED                       0x00000002      // has HDA attached
+#define SEG_OWNED			0x00000001
+#define HDA_OWNED			0x00000002
 #define EXTRA_WRITE_DISCONNECT          0x00000004
 #define COMPLETION_SENT                 0x00000008
 #define COMPLETION_RECEIVED             0x00000010
@@ -175,19 +173,13 @@ typedef enum {
   PRESEEK_BEFORE_COMPLETION      = 2        /* implies 1 as well */
 } disk_preseek_t;
 
-/* Disk fastwrites levels OBSOLETE */
+/* Disk fastwrites levels */
 typedef enum {
-  NO_FASTWRITE          = 0,
-  LIMITED_FASTWRITE     = 1,
-  FULL_FASTWRITE        = 2
+  NO_FASTWRITE			= 0,
+  LIMITED_FASTWRITE		= 1,
+  FULL_FASTWRITE	        = 2
 } disk_fastwrite_t;
 
-
-/* Disk write cache enable levels */
-typedef enum {
-  WCD     = 0,
-  WCE     = 1
-} disk_write_cache_enable_t;
 
 /* aliases */
 #define ioreq_hold_disk tempptr1
@@ -203,42 +195,41 @@ typedef struct seg {
    disk_buffer_state_t state;
    struct seg  *next;
    struct seg  *prev;
-   int         startblkno;
-   int         endblkno;
-   disk_buffer_outstate_t   outstate;
-   int         outbcount;
-   int         minreadaheadblkno;      /* min prefetch blkno + 1 */
-   int         maxreadaheadblkno;      /* max prefetch blkno + 1 */
+   int          startblkno;
+   int          endblkno;
+   disk_buffer_outstate_t outstate;
+   int		outbcount;
+   int		minreadaheadblkno;      /* min prefetch blkno + 1 */
+   int		maxreadaheadblkno;      /* max prefetch blkno + 1 */
 
-   struct diskreq_t *diskreqlist;       /* sorted by ascending blkno */
-   int               size;
+   struct diskreq_t *diskreqlist;       /* sorted by ascendingly first blkno */
+   int          size;
                                         /* diskreqlist normally starts
-                                         * as a single request, more
-                                         * can be added by read hits
-                                         * on the segment and write combining */
+					 * as a single request, more
+					 * can be added by read hits
+					 * on the segment and write
+					 * combining */
 
-   ioreq_event *access;                 /* copy of the active ioreq using this seg -rcohen */
-   int               hold_blkno;        /* used for prepending */
-   int               hold_bcount;       /* sequential writes   */
+   ioreq_event *access;                 /* copy of the active ioreq
+                                         * using this seg -rcohen */
+   int		hold_blkno; 		/* used for prepending */
+   int		hold_bcount;		/* sequential writes   */
    struct diskreq_t *recyclereq;        /* diskreq to recycle this seg */
-   struct dm_mech_acctimes mech_acctimes; // storage for RPO calculation
 } segment;
-
-typedef std::map <double, segment *> CACHE_LBA_MAP;
 
 
 typedef struct diskreq_t {
-   int                 flags;
-   ioreq_event         *ioreqlist;  /* sorted by ascending blkno */
-   struct diskreq_t    *seg_next;   /* list attached to a segment */
+   int			flags;
+   ioreq_event 	       *ioreqlist;	/* sorted by ascending blkno */
+   struct diskreq_t    *seg_next;	/* list attached to a segment */
    struct diskreq_t    *bus_next;
-   int                 outblkno;
-   int                 inblkno;
-   segment             *seg;       /* associated cache segment */
-   int                 watermark;  // used by read and write
-   disk_cache_hit_t    hittype;    /* for cache use */
-   double              overhead_done;
-   char                space[20];
+   int			outblkno;
+   int			inblkno;
+   segment	       *seg;		/* associated cache segment */
+   int          	watermark;
+   disk_cache_hit_t     hittype;	/* for cache use */
+   double		overhead_done;
+   char			space[20];
 } diskreq;
 
 
@@ -284,21 +275,17 @@ struct disk_currstate {
 typedef struct disk {
   struct device_header hdr;
   struct dm_disk_if    *model;
-  struct dm_mech_state mech_state;
 
+  struct dm_mech_state mech_state;
   int track_low, track_high; // track boundaries for the current track
 
   int	               devno;
 
-//****************************************************************
-// Used by SIMPLE_DISK_MODEL
   // if true, uses constant access-time model,
   // bypasses some of mech model
   int       const_acctime; 
   // constant access time; only meaningful if const_acctime is true
   double          acctime;
-//****************************************************************
-
 
   // if true, uses constant seek-time model,
   // bypasses some of mech model
@@ -353,18 +340,17 @@ typedef struct disk {
   int		numwritesegs;
   segment *	dedicatedwriteseg;
   int		segsize;
-  double	writelowwatermark;
-  double	readhighwatermark;
-  int		reqwater;           // Set watermark by reqsize flag (from parameter file)
+  double	writewater;
+  double	readwater;
+  int		reqwater;
   int		sectbysect;
   int		enablecache;
-  int       contread;           // Buffer Continuous Read (from parameter file)
+  int		contread;
   int		minreadahead;
   int		maxreadahead;
   int		keeprequestdata;
-  int		readaheadifidle; // obsolete
-  int		fastwrites; // obsolete
-  int       writeCacheEnable;
+  int		readaheadifidle;
+  int		fastwrites;
   int		numdirty;
 
   // "Combine seq writes"
@@ -441,7 +427,7 @@ typedef struct disk {
   // "Bulk sector transfer time"
   double       blktranstime;
 
-  disk_state_t outstate;   // current disk state
+  disk_state_t outstate;
 
   // cache/controller
   diskreq     *pendxfer;
@@ -454,7 +440,7 @@ typedef struct disk {
   // only appears in controller code
   int	       blksdone;
 
-  int	       busowned;    // set to the bus number connected to this disk
+  int	       busowned;
   ioreq_event *buswait;
   ioreq_event *outwait;
 
@@ -481,10 +467,8 @@ typedef struct disk {
   // statically, should be set to the track length) and
   // disk_buffer_sector_done() decrements it and asserts that it
   // hasn't gotten to 0.
-  // int fpcheck;
+  int fpcheck;
 
-  double    writeCacheFlushIdleDelay;
-  double    writeCacheFlushPeriod;
 } disk;
 
 
@@ -521,44 +505,44 @@ typedef struct disk_info {
 
 /* one remapping #define for each variable in disk_info_t */
 //#define disks                     (disksim->diskinfo->disks)
-//#define multi_disk_last_seektime  (disksim->diskinfo->multi_disk_last_seektime)
-//#define multi_disk_last_latency   (disksim->diskinfo->multi_disk_last_latency)
-//#define multi_disk_last_cylno     (disksim->diskinfo->multi_disk_last_cylno)
-//#define multi_disk_last_surface   (disksim->diskinfo->multi_disk_last_surface)
-//#define multi_disk_last_angle     (disksim->diskinfo->multi_disk_last_angle)
-//#define multi_disk_last_xfertime  (disksim->diskinfo->multi_disk_last_xfertime)
-//#define multi_disk_last           (disksim->diskinfo->multi_disk_last)
-//#define do_free_blocks            (disksim->diskinfo->do_free_blocks)
-//#define disk_last_angle           (disksim->diskinfo->disk_last_angle)
-//#define lastdisk                  (disksim->diskinfo->lastdisk)
+#define multi_disk_last_seektime  (disksim->diskinfo->multi_disk_last_seektime)
+#define multi_disk_last_latency   (disksim->diskinfo->multi_disk_last_latency)
+#define multi_disk_last_cylno     (disksim->diskinfo->multi_disk_last_cylno)
+#define multi_disk_last_surface   (disksim->diskinfo->multi_disk_last_surface)
+#define multi_disk_last_angle     (disksim->diskinfo->multi_disk_last_angle)
+#define multi_disk_last_xfertime  (disksim->diskinfo->multi_disk_last_xfertime)
+#define multi_disk_last           (disksim->diskinfo->multi_disk_last)
+#define do_free_blocks            (disksim->diskinfo->do_free_blocks)
+#define disk_last_angle           (disksim->diskinfo->disk_last_angle)
+#define lastdisk                  (disksim->diskinfo->lastdisk)
 #define NUMDISKS                  (disksim->diskinfo->numdisks)
 #define disk_printhack            (disksim->diskinfo->disk_printhack)
 #define disk_printhacktime        (disksim->diskinfo->disk_printhacktime)
-#define NUMSYNCSETS                 (disksim->diskinfo->numsyncsets)
-#define EXTRA_WRITE_DISCONNECTS   (disksim->diskinfo->extra_write_disconnects)
+#define numsyncsets               (disksim->diskinfo->numsyncsets)
+#define extra_write_disconnects   (disksim->diskinfo->extra_write_disconnects)
 //#define remapsector               (disksim->diskinfo->remapsector)
-//#define bandstart                 (disksim->diskinfo->bandstart)
-#define SWAP_FORWARD_ONLY         (disksim->diskinfo->swap_forward_only)
+#define bandstart                 (disksim->diskinfo->bandstart)
+#define swap_forward_only         (disksim->diskinfo->swap_forward_only)
 // #define trackstart                (disksim->diskinfo->trackstart)
-#define ADDTOLATENCY              (disksim->diskinfo->addtolatency)
+#define addtolatency              (disksim->diskinfo->addtolatency)
 //#define global_seekdistance       (disksim->diskinfo->global_seekdistance)
-#define DISK_SEEK_STOPTIME        (disksim->diskinfo->disk_seek_stoptime)
-//#define disk_last_distance        (disksim->diskinfo->disk_last_distance)
-//#define disk_last_seektime        (disksim->diskinfo->disk_last_seektime)
-//#define disk_last_latency         (disksim->diskinfo->disk_last_latency)
-//#define DISK_LAST_XFERTIME        (disksim->diskinfo->disk_last_xfertime)
-//#define disk_last_acctime         (disksim->diskinfo->disk_last_acctime)
-//#define DISK_LAST_CYLNO           (disksim->diskinfo->disk_last_cylno)
-//#define disk_last_surface         (disksim->diskinfo->disk_last_surface)
-#define LRU_AT_SEG_LIST_HEAD      (disksim->diskinfo->LRU_at_seg_list_head)
+#define disk_seek_stoptime        (disksim->diskinfo->disk_seek_stoptime)
+#define disk_last_distance        (disksim->diskinfo->disk_last_distance)
+#define disk_last_seektime        (disksim->diskinfo->disk_last_seektime)
+#define disk_last_latency         (disksim->diskinfo->disk_last_latency)
+#define disk_last_xfertime        (disksim->diskinfo->disk_last_xfertime)
+#define disk_last_acctime         (disksim->diskinfo->disk_last_acctime)
+#define disk_last_cylno           (disksim->diskinfo->disk_last_cylno)
+#define disk_last_surface         (disksim->diskinfo->disk_last_surface)
+#define LRU_at_seg_list_head      (disksim->diskinfo->LRU_at_seg_list_head)
 //#define global_currcylno          (disksim->diskinfo->global_currcylno)
 //#define global_currsurface        (disksim->diskinfo->global_currsurface)
 //#define global_currtime           (disksim->diskinfo->global_currtime)
 //#define global_currangle          (disksim->diskinfo->global_currangle)
-#define BUFFER_PARTIAL_SERVTIME         (disksim->diskinfo->buffer_partial_servtime)
-#define READING_BUFFER_PARTIAL_SERVTIME (disksim->diskinfo->reading_buffer_partial_servtime)
-#define BUFFER_WHOLE_SERVTIME           (disksim->diskinfo->buffer_whole_servtime)
-#define READING_BUFFER_WHOLE_SERVTIME   (disksim->diskinfo->reading_buffer_whole_servtime)
+#define buffer_partial_servtime   (disksim->diskinfo->buffer_partial_servtime)
+#define reading_buffer_partial_servtime (disksim->diskinfo->reading_buffer_partial_servtime)
+#define buffer_whole_servtime     (disksim->diskinfo->buffer_whole_servtime)
+#define reading_buffer_whole_servtime (disksim->diskinfo->reading_buffer_whole_servtime)
 
 
 
@@ -574,20 +558,24 @@ int  disk_enablement_function (ioreq_event *);
  * disksim_diskcache.c functions 
  */
 
-void dump_disk_buffer_seqment ( FILE *fp, segment *seg, int index );
-void dump_disk_buffer_seqments ( FILE *fp, segment *seglist, const char *msg );
-segment * disk_buffer_select_segment(disk *currdisk, diskreq *currdiskreq, int set_extradisc);
+segment * disk_buffer_select_segment(disk *currdisk, 
+				     diskreq *currdiskreq, 
+				     int set_extradisc);
 
 segment * disk_buffer_recyclable_segment(disk *currdisk, int isread);
 diskreq * disk_buffer_seg_owner(segment *seg, int effective);
 int  disk_buffer_attempt_seg_ownership(disk *currdisk, diskreq *currdiskreq);
 
-int  disk_buffer_get_max_readahead(disk *currdisk, segment *seg, ioreq_event *curr);
+int  disk_buffer_get_max_readahead(disk *currdisk, 
+				   segment *seg, 
+				   ioreq_event *curr);
 
-int disk_buffer_block_available (disk *currdisk, segment *seg, int blkno);
+int  disk_buffer_block_available(disk *currdisk, segment *seg, int blkno);
 int  disk_buffer_reusable_segment_check(disk *currdisk, segment *currseg);
 int  disk_buffer_overlap(segment *seg, ioreq_event *curr);
-int  disk_buffer_check_segments(disk *currdisk, ioreq_event *currioreq, int *buffer_reading);
+int  disk_buffer_check_segments(disk *currdisk, 
+				ioreq_event *currioreq, 
+				int *buffer_reading);
 
 void disk_buffer_set_segment(disk *currdisk, diskreq *currdiskreq);
 void disk_buffer_segment_wrap(segment *seg, int endblkno);
@@ -683,17 +671,6 @@ void disk_acctimestats (disk *currdisk, int distance, double seektime,
 		        double latency, double xfertime, double acctime);
 
 int disk_load_syncsets(struct lp_block *b);
-
-static void disk_read_arrive( disk *currdisk, ioreq_event *curr, diskreq *new_diskreq, segment *seg, ioreq_event *intrp);
-static void disk_write_arrive(disk *currdisk, ioreq_event *curr, diskreq *new_diskreq, segment *seg, ioreq_event *intrp);
-char * disk_buffer_decode_disk_cache_hit_t( disk_cache_hit_t hittype );
-void dump_disk_buffer_seqments ( segment *seg, const char *msg );
-
-// write cache flush routines
-void disk_write_cache_periodic_flush (timer_event *timereq);
-void disk_write_cache_idletime_detected (void *idleworkparam, int idledevno);
-CACHE_LBA_MAP disk_buffer_sort_cache_segments_by_LBA( disk *currdisk );
-double disk_calc_rpo_time( disk *currdisk, ioreq_event *curr, struct dm_mech_acctimes *mech_acctimes );
 
 #endif   /* DISKSIM_DISK_H */
 

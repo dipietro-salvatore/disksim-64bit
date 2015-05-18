@@ -34,10 +34,10 @@
 #ifndef _DISKSIM_INLINE_H
 #define _DISKSIM_INLINE_H
 
-//#ifdef _INLINE
-//#define INLINE inline
-//#else
+#ifdef _INLINE
+#define INLINE inline
+#else
 #define INLINE
-//#endif // _INLINE
+#endif // _INLINE
 
 #endif // _DISKSIM_INLINE_H

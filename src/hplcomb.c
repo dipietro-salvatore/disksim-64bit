@@ -87,7 +87,9 @@ int basesecond = 0;
 int currentsecond = 0;
 
 
-int io_month_convert( char *monthstr, int year )
+int io_month_convert(monthstr, year)
+char *monthstr;
+int year;
 {
    if (strcmp(monthstr, "Jan") == 0) {
       return(0);
@@ -119,7 +121,8 @@ int io_month_convert( char *monthstr, int year )
 }
 
 
-void io_hpl_srt_tracefile_start( char *tracedate )
+void io_hpl_srt_tracefile_start(tracedate)
+char *tracedate;
 {
    char crap[40];
    char monthstr[40];
@@ -151,7 +154,8 @@ void io_hpl_srt_tracefile_start( char *tracedate )
 }
 
 
-void hpl_srt_initialize_file( FILE *iotracefile )
+void hpl_srt_initialize_file(iotracefile)
+FILE *iotracefile;
 {
    char letter = '0';
    char line[201];
@@ -177,7 +181,10 @@ void hpl_srt_initialize_file( FILE *iotracefile )
 }
 
 
-int trace_batch_initialize( FILE *batchfile, FILE **fileptr, char *tracefilename )
+int trace_batch_initialize(batchfile, fileptr, tracefilename)
+FILE *batchfile;
+FILE **fileptr;
+char *tracefilename;
 {
    char commandname[200];
 
@@ -202,7 +209,9 @@ int trace_batch_initialize( FILE *batchfile, FILE **fileptr, char *tracefilename
 }
 
 
-int main( int argc, char **argv )
+int main(argc, argv)
+int argc;
+char **argv;
 {
    int recordcnt = 0;
    intchar doubleword;

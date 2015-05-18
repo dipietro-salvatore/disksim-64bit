@@ -141,17 +141,6 @@ ddbg_assert_fail(__FILE__, __LINE__, #cond, __func__, fmt); \
 #define ddbg_assert2(x,y)
 #endif
 
-/* like assert() modulo above */
-#ifndef _DDBG_DISABLE_ASSERTIONS
-//#define ddbg_assert_ptr(cond) do { void* _ltassert_cond = (void*)(cond);
-#define ddbg_assert_ptr(cond) do { \
-if(!(cond)) { \
-ddbg_assert_msg(__FILE__, __LINE__, #cond, __func__, ""); \
-ddbg_assert_fail(__FILE__, __LINE__, #cond, __func__, ""); \
-} } while(0)
-#else
-#define ddbg_assert_ptr(cond) 
-#endif
 
 /* invoke by e.g. 
  *   ddbg_assert3(cond, ("foo %d", 3));

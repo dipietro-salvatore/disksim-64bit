@@ -107,12 +107,12 @@
 
 /* I/O Subsystem restrictions */
 
-#define MAXDEVICES      100
-#define MAXDEPTH        4     /* Bus hierarchy can be up to four levels deep */
-#define MAXINBUSES      1
-#define MAXOUTBUSES     4
-#define MAXSLOTS        15
-#define MAXLOGORGS      100
+#define MAXDEVICES	100
+#define MAXDEPTH	4     /* Bus hierarchy can be up to four levels deep */
+#define MAXINBUSES	1
+#define MAXOUTBUSES	4
+#define MAXSLOTS	15
+#define MAXLOGORGS	100
 
 
 #include "disksim_device.h"
@@ -120,87 +120,87 @@
 
 /* I/O Event types */
 
-/* #define IO_REQUEST_ARRIVE        100 *//* actually in ioface.h */
-#define IO_ACCESS_ARRIVE                    101
-#define IO_INTERRUPT_ARRIVE                 102
-#define IO_RESPOND_TO_DEVICE                103
-#define IO_ACCESS_COMPLETE                  104
-#define IO_INTERRUPT_COMPLETE               105
-#define DEVICE_OVERHEAD_COMPLETE            106
-#define DEVICE_ACCESS_COMPLETE              107
-#define DEVICE_PREPARE_FOR_DATA_TRANSFER    108
-#define DEVICE_DATA_TRANSFER_COMPLETE       109
-#define DEVICE_BUFFER_SEEKDONE              110
-#define DEVICE_BUFFER_TRACKACC_DONE         111
-#define DEVICE_BUFFER_SECTOR_DONE           112
-#define DEVICE_GOT_REMAPPED_SECTOR          113
-#define DEVICE_GOTO_REMAPPED_SECTOR         114
-#define BUS_OWNERSHIP_GRANTED               115
-#define BUS_DELAY_COMPLETE                  116
-#define CONTROLLER_DATA_TRANSFER_COMPLETE   117
-#define TIMESTAMP_LOGORG                    118
-#define IO_TRACE_REQUEST_START              119
-#define IO_QLEN_MAXCHECK                    120
+/* #define IO_REQUEST_ARRIVE			100 *//* actually in ioface.h */
+#define IO_ACCESS_ARRIVE			101
+#define IO_INTERRUPT_ARRIVE			102
+#define IO_RESPOND_TO_DEVICE			103
+#define IO_ACCESS_COMPLETE			104
+#define IO_INTERRUPT_COMPLETE			105
+#define DEVICE_OVERHEAD_COMPLETE		106
+#define DEVICE_ACCESS_COMPLETE			107
+#define DEVICE_PREPARE_FOR_DATA_TRANSFER	108
+#define DEVICE_DATA_TRANSFER_COMPLETE		109
+#define DEVICE_BUFFER_SEEKDONE			110
+#define DEVICE_BUFFER_TRACKACC_DONE		111
+#define DEVICE_BUFFER_SECTOR_DONE		112
+#define DEVICE_GOT_REMAPPED_SECTOR		113
+#define DEVICE_GOTO_REMAPPED_SECTOR		114
+#define BUS_OWNERSHIP_GRANTED			115
+#define BUS_DELAY_COMPLETE			116
+#define CONTROLLER_DATA_TRANSFER_COMPLETE	117
+#define TIMESTAMP_LOGORG			118
+#define IO_TRACE_REQUEST_START			119
+#define IO_QLEN_MAXCHECK			120
 
 /* mems event types */
 
-#define MEMS_SLED_SCHEDULE  201
-#define MEMS_SLED_SEEK      202
-#define MEMS_SLED_SERVO     203
-#define MEMS_SLED_DATA      204
-#define MEMS_SLED_UPDATE    205
-#define MEMS_BUS_INITIATE   206
-#define MEMS_BUS_TRANSFER   207
-#define MEMS_BUS_UPDATE     208
+#define MEMS_SLED_SCHEDULE 			201
+#define MEMS_SLED_SEEK				202
+#define MEMS_SLED_SERVO			        203
+#define MEMS_SLED_DATA				204
+#define MEMS_SLED_UPDATE			205
+#define MEMS_BUS_INITIATE			206
+#define MEMS_BUS_TRANSFER			207
+#define MEMS_BUS_UPDATE			        208
 
 /* SSD: ssd event types -- keep this between SSD_MIN_EVENT and SSD_MAX_EVENT */
 
-#define SSD_CLEAN_ELEMENT   301
-#define SSD_CLEAN_GANG      302
+#define SSD_CLEAN_ELEMENT		        301
+#define SSD_CLEAN_GANG			        302
 
 /* I/O Interrupt cause types */
 
 typedef enum {
-  COMPLETION        = -1,
-  RECONNECT         = -2,
-  DISCONNECT        = -3,
-  READY_TO_TRANSFER = -4
+  COMPLETION		= -1,
+  RECONNECT		= -2,
+  DISCONNECT		= -3,
+  READY_TO_TRANSFER	= -4
 } disksim_int_t;
 
 #ifndef IOFACE_H
 
 /* Device types */
 
-#define IODRIVER    2
-#define DEVICE        4
-#define CONTROLLER    5
+#define IODRIVER	2
+#define DEVICE		4
+#define CONTROLLER	5
 
 #endif   /* IOFACE_H */
 
 /* Call types for diskacctime() */
 
-#define DISKACCESS    1
-#define DISKACCTIME    2
-#define DISKPOS        3
-#define DISKPOSTIME    4
-#define DISKSEEK    5
-#define DISKSEEKTIME    6
-#define DISKSERVTIME    7
+#define DISKACCESS	1
+#define DISKACCTIME	2
+#define DISKPOS		3
+#define DISKPOSTIME	4
+#define DISKSEEK	5
+#define DISKSEEKTIME	6
+#define DISKSERVTIME	7
 
 /* LBN to PBN mapping types (also for getting cylinder mappings) */
 
 /* no idea why this was ever here, now lives in diskmodel.  bucy */
 /*  typedef enum { */
-/*    MAP_NONE        = 0, */
-/*    MAP_IGNORESPARING    = 1, */
-/*    MAP_ZONEONLY        = 2, */
-/*    MAP_ADDSLIPS        = 3, */
-/*    MAP_FULL        = 4, */
-/*    MAP_FROMTRACE        = 5, */
-/*    MAP_AVGCYLMAP        = 6 */
+/*    MAP_NONE		= 0, */
+/*    MAP_IGNORESPARING	= 1, */
+/*    MAP_ZONEONLY		= 2, */
+/*    MAP_ADDSLIPS		= 3, */
+/*    MAP_FULL		= 4, */
+/*    MAP_FROMTRACE		= 5, */
+/*    MAP_AVGCYLMAP		= 6 */
 /*  } disksim_map_t; */
 
-/*  #define    MAXMAPTYPE MAP_AVGCYLMAP */
+/*  #define	MAXMAPTYPE MAP_AVGCYLMAP */
 
 /* Convenient to define here, so can be used both by controllers and drivers */
 /* These are just simple structures used in higher-level components to track */
@@ -212,7 +212,7 @@ typedef struct {
    intchar      slotpath;
    intchar      buspath;
    int          maxoutstanding;
-   int          numoutstanding;
+   int		numoutstanding;
    int          maxreqsize;
    ioreq_event *pendio;
    ioreq_event *oversized;
@@ -227,7 +227,7 @@ typedef struct {
    intchar      slotpath;
    intchar      buspath;
    int          maxoutstanding;
-   int          queuectlr;
+   int		queuectlr;
    ctlr         *ctl;
    struct ioq   *queue;
 } device;
@@ -236,13 +236,13 @@ typedef struct {
 /* exported disksim_iosim.c functions */
 
 void io_validate_do_stats1 ();
-void io_validate_do_stats2 (ioreq_event *new_event);
+void io_validate_do_stats2 (ioreq_event *new);
 ioreq_event * ioreq_copy (ioreq_event *old);
 int ioreq_compare (ioreq_event *first, ioreq_event *second);
 void iosim_get_path_to_controller (int iodriverno, int ctlno, intchar *buspath, intchar *slotpath);
 void iosim_get_path_to_device (int iodriverno, int devno, intchar *buspath, intchar *slotpath);
-int iosim_load_mappings(struct lp_list *l);
-char * iosim_decodeInterruptEvent( ioreq_event *ioReqEvent );
+
+
 
 #include "disksim_global.h"
 #include "disksim_ioface.h"
@@ -254,20 +254,20 @@ char * iosim_decodeInterruptEvent( ioreq_event *ioReqEvent );
 #include "disksim_controller.h"
 #include "config.h"
 
-#define TRACEMAPPINGS    MAXDEVICES
+#define TRACEMAPPINGS	MAXDEVICES
 
-#define PRINTTRACESTATS        TRUE
+#define PRINTTRACESTATS		TRUE
 
 
 /* read-only globals used during readparams phase */
-static char *statdesc_tracequeuestats =        "Trace queue time";
-static char *statdesc_tracerespstats =         "Trace response time";
-static char *statdesc_traceaccstats =          "Trace access time";
-static char *statdesc_traceqlenstats =         "Trace queue length";
-static char *statdesc_tracenoqstats =          "Trace non-queue time";
-static char *statdesc_traceaccdiffstats =      "Trace access diff time";
-static char *statdesc_traceaccwritestats =     "Trace write access time";
-static char *statdesc_traceaccdiffwritestats = "Trace write access diff time";
+static char *statdesc_tracequeuestats =		"Trace queue time";
+static char *statdesc_tracerespstats =		"Trace response time";
+static char *statdesc_traceaccstats =		"Trace access time";
+static char *statdesc_traceqlenstats =		"Trace queue length";
+static char *statdesc_tracenoqstats =		"Trace non-queue time";
+static char *statdesc_traceaccdiffstats =	"Trace access diff time";
+static char *statdesc_traceaccwritestats =	"Trace write access time";
+static char *statdesc_traceaccdiffwritestats =	"Trace write access diff time";
 
 
 typedef struct iosim_info {

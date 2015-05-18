@@ -31,18 +31,18 @@
 TOP_BUILDDIR=$(shell pwd)
 include .paths
 
-SUBDIRS=libddbg libparam diskmodel memsmodel ssdmodel src valid
+SUBDIRS=libddbg libparam diskmodel memsmodel ssdmodel src
 
 all: 	
 	$(MAKE) -C libddbg
 	$(MAKE) -C libparam
 	$(MAKE) -C diskmodel
-#	$(MAKE) -C memsmodel
-#	$(MAKE) -C ssdmodel
+	$(MAKE) -C memsmodel
+	$(MAKE) -C ssdmodel
 	$(MAKE) -C src
-#	$(MAKE) -C diskmodel/layout_g4_tools
+	$(MAKE) -C diskmodel/layout_g4_tools
         # If dixtrac is included, build it with the distribution
-#	if [ -d dixtrac ]; then $(MAKE) -C dixtrac ; fi
+	if [ -d dixtrac ]; then $(MAKE) -C dixtrac ; fi
 
 clean:
 	for d in $(SUBDIRS); do \
@@ -61,8 +61,8 @@ doc:
 	$(MAKE) -C libparam
 	$(MAKE) -C src/modules
 	$(MAKE) -C diskmodel/modules
-#	$(MAKE) -C memsmodel/modules
-#	$(MAKE) -C ssdmodel/modules
+	$(MAKE) -C memsmodel/modules
+	$(MAKE) -C ssdmodel/modules
 
 doc-clean:
 	$(MAKE) -C memsmodel/modules distclean

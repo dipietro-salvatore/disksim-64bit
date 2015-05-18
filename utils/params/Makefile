@@ -31,16 +31,16 @@ all: $(TARGETS)
 
 include .paths
 
-DISKSIM_CFLAGS=-m32 -I../../src
-DISKSIM_LDFLAGS=-m32 -L../../src -ldisksim
+DISKSIM_CFLAGS=-I../../src
+DISKSIM_LDFLAGS=-L../../src -ldisksim
 
-CFLAGS = -g -m32\
+CFLAGS = -g \
         $(DISKSIM_CFLAGS) \
         $(DISKMODEL_CFLAGS) \
         $(LIBPARAM_CFLAGS) \
         $(LIBDDBG_CFLAGS) 
 
-LDFLAGS = -m32 $(DISKSIM_LDFLAGS) \
+LDFLAGS = $(DISKSIM_LDFLAGS) \
 	  $(DISKMODEL_LDFLAGS) \
           $(LIBPARAM_LDFLAGS) \
           $(LIBDDBG_LDFLAGS) -lm

@@ -32,12 +32,8 @@
 
 MODULE stats
 RESTYPE int
-PROTO int disksim_bus_stats_loadparams(struct lp_block *b);
-PROTO int disksim_ctlr_stats_loadparams(struct lp_block *b);
-PROTO int disksim_device_stats_loadparams(struct lp_block *b);
-PROTO int disksim_iodriver_stats_loadparams(struct lp_block *b);
-PROTO int disksim_pf_stats_loadparams(struct lp_block *b);
 PROTO int disksim_stats_loadparams(struct lp_block *b);
+
 
 PARAM iodriver stats	BLOCK	1
 TEST disksim_iodriver_stats_loadparams(blk)

@@ -63,10 +63,10 @@
 
 
 typedef enum {
-  DEVICETYPE_DISK       = 1,
+  DEVICETYPE_DISK	= 1,
   DEVICETYPE_SIMPLEDISK	= 2,
-  DEVICETYPE_MEMS       = 3,
-  DEVICETYPE_SSD        = 4,
+  DEVICETYPE_MEMS      = 3,
+  DEVICETYPE_SSD       = 4,
 
   // this is something of a hack so that things like synthgen can
   // refer to a logorg by name.  All we care here is that it has a
@@ -107,6 +107,7 @@ typedef struct device_info {
    int device_printacctimestats;
    int device_printinterferestats;
    int device_printbufferstats;
+
 } device_info_t;
 
 

@@ -56,38 +56,27 @@
 
 
 #include "disksim_global.h"
-#include "disksim_iodriver.h"
-#include "disksim_ioqueue.h"
-#include "disksim_simresult.h"
 
 
 int main (int argc, char **argv)
 {
   int len;
-  time_t startTime, endTime;
 
-  time( & startTime );
+
+#ifndef _WIN32
   setlinebuf(stdout);
   setlinebuf(stderr);
+#endif
 
-  printf( "DiskSim v%s\n", VERSION );
   if(argc == 2) {
      disksim_restore_from_checkpoint (argv[1]);
   } 
   else {
-    disksim = (disksim_t *)calloc(1, sizeof(struct disksim));
+    disksim = calloc(1, sizeof(struct disksim));
     disksim_initialize_disksim_structure(disksim);
     disksim_setup_disksim (argc, argv);
   }
-
   disksim_run_simulation ();
-  time( &endTime );
-//  printf( "base     queue: listlen %d, numoutstanding %d\n", disksim->iodriver_info->overallqueue->base.listlen, disksim->iodriver_info->overallqueue->base.numoutstanding );
-//  printf( "priority queue: listlen %d, numoutstanding %d\n", disksim->iodriver_info->overallqueue->priority.listlen, disksim->iodriver_info->overallqueue->priority.numoutstanding );
-//  printf( "timeout  queue: listlen %d, numoutstanding %d\n", disksim->iodriver_info->overallqueue->timeout.listlen, disksim->iodriver_info->overallqueue->timeout.numoutstanding );
-  disksim_cleanup_and_printstats ( startTime, endTime );
+  disksim_cleanup_and_printstats ();
   exit(0);
 }
-
-// End of file
-

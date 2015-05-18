@@ -263,7 +263,7 @@ typedef struct pf_info {
    process *process_livelist;
    process *extra_process_q;
    int  extra_process_qlen;
-   int  curlbolt;                   // signed int that counts the number of clock ticks since the system was booted?? hurst_r
+   int  curlbolt;
    ioreq_event *pendiolist;
    ioreq_event *doneiolist;
    process *synthlist;

@@ -133,7 +133,6 @@
  */
 
 
-#include <unistd.h>
 
 #include "disksim_global.h"
 #include "disksim_ioface.h"
@@ -154,7 +153,6 @@ struct disksim_interface {
 };
 */
 
-
 /* This is the disksim callback for reporting completion of a disk
  * request to the system-level simulation -- the system-level *
  * simulation should incorporate this completion as appropriate *
@@ -168,12 +166,6 @@ struct disksim_interface {
 static event * 
 disksim_interface_io_done_notify (ioreq_event *curr, void *ctx)
 {
-#ifdef DEBUG_INTERFACE
-    fprintf( outputfile, "%f: disksim_interface_io_done_notify  ctx %p, curr %p, time %f, type %d, devno %d, blkno %d, bcount %d, flags %X\n",
-            simtime, ctx, curr, curr->time, curr->type, curr->devno, curr->blkno, curr->bcount, curr->flags );
-    fflush( outputfile );
-#endif
-
   struct disksim_interface *iface = (struct disksim_interface *)ctx;
   struct disksim_request *req = (struct disksim_request *) curr->buf;
 
@@ -184,26 +176,20 @@ disksim_interface_io_done_notify (ioreq_event *curr, void *ctx)
 
 
 static int
-disksim_interface_initialize_latency (
-        struct disksim_interface *iface,
-        const char *pfile,
-        const char *ofile,
-        int latency_weight,
-        char *paramval,
-        char *paramname,
-        int synthio,
-        char *sched_alg,
-        int over_argc,
-        char **over_argv)
+disksim_interface_initialize_latency (struct disksim_interface *iface,
+				      const char *pfile, 
+				      const char *ofile, 
+				      int latency_weight, 
+				      char *paramval, 
+				      char *paramname, 
+				      int synthio, 
+				      char *sched_alg,
+				      int over_argc,
+				      char **over_argv)
 {
   char **argv;
   int argc = 6;
   int i = argc;
-
-#ifdef DEBUG_INTERFACE
-    fprintf( outputfile, "%f: disksim_interface_initialize_latency\n", simtime );
-    fflush( outputfile );
-#endif
 
   argc += over_argc;
   
@@ -215,7 +201,7 @@ disksim_interface_initialize_latency (
     argc += 12;
   }
 
-  argv = (char **)calloc(argc, sizeof(char *));
+  argv = calloc(argc, sizeof(char *));
 
   if(latency_weight){
     //     iodriver_param_override(paramname,paramval,-1,-1);
@@ -270,45 +256,38 @@ disksim_interface_initialize_latency (
 
 /* called once at simulation initialization time */
 
-struct disksim_interface *
-disksim_interface_initialize (
-        const char *pfile,
-        const char *ofile,
-        disksim_interface_complete_t comp,
-        disksim_interface_sched_t sched,
-        disksim_interface_desched_t desched,
-        void *ctx,
-        int argc,
-        char **argv)
+struct disksim_interface * 
+disksim_interface_initialize (const char *pfile, 
+			      const char *ofile,
+			      disksim_interface_complete_t comp,
+			      disksim_interface_sched_t sched,
+			      disksim_interface_desched_t desched,
+			      void *ctx,
+			      int argc,
+			      char **argv)
 {
-  struct disksim_interface *iface = (struct disksim_interface *)calloc(1, sizeof(struct disksim_interface));
+  struct disksim_interface *iface = calloc(1, sizeof(struct disksim_interface));
   ddbg_assert(iface != 0);
-
-#ifdef DEBUG_INTERFACE
-    fprintf( outputfile, "%f: disksim_interface_initialize\n", simtime );
-    fflush( outputfile );
-#endif
 
   iface->complete_fn = comp;
   iface->sched_fn = sched;
   iface->desched_fn = desched;
   iface->ctx = ctx;
-  iface->disksim = (disksim_t *)calloc(1, sizeof(struct disksim));
+  iface->disksim = calloc(1, sizeof(struct disksim));
 
   disksim = iface->disksim;
 
 
-  disksim_interface_initialize_latency(
-          iface,
-          pfile,
-          ofile,
-          0,         // latency_weight
-          NULL,      // paramval
-          NULL,      // paramname
-          0,         // synthio
-          NULL,      // sched_alg
-          argc,
-          argv);
+  disksim_interface_initialize_latency(iface, 
+				       pfile, 
+				       ofile, 
+				       0,         // latency_weight
+				       NULL,      // paramval
+				       NULL,      // paramname
+				       0,         // synthio
+				       NULL,      // sched_alg
+				       argc,
+				       argv);
 
   disksim->notify_ctx = iface;
 
@@ -320,16 +299,10 @@ disksim_interface_initialize (
 /* called once at simulation shutdown time */
 
 void 
-disksim_interface_shutdown (
-        struct disksim_interface *iface,
-        double syssimtime)
+disksim_interface_shutdown (struct disksim_interface *iface,
+			    double syssimtime)
 {
    double curtime = syssimtime;
-
-#ifdef DEBUG_INTERFACE
-    fprintf( outputfile, "%f: disksim_interface_shutdown\n", simtime );
-    fflush( outputfile );
-#endif
 
    disksim = iface->disksim;
 
@@ -353,16 +326,10 @@ disksim_interface_shutdown (
 /* system-level simulation.                                                */
 
 void 
-disksim_interface_dump_stats (
-        struct disksim_interface *iface,
-        double syssimtime)
+disksim_interface_dump_stats (struct disksim_interface *iface,
+			      double syssimtime)
 {
    double curtime = syssimtime;
-
-#ifdef DEBUG_INTERFACE
-    fprintf( outputfile, "%f: disksim_interface_dump_stats\n", simtime );
-    fflush( outputfile );
-#endif
 
    disksim = iface->disksim;
 
@@ -394,18 +361,14 @@ static int event_count = 0;
 /* current simulated time of the system-level simulation.                  */
 
 void 
-disksim_interface_internal_event (
-        struct disksim_interface *iface,
-        double syssimtime,
-        void *junk)
+disksim_interface_internal_event (struct disksim_interface *iface, 
+				  double syssimtime,
+				  void *junk)
 {
    double curtime = syssimtime;
    disksim = iface->disksim;
 
-#ifdef DEBUG_INTERFACE
-   fprintf( outputfile, "****** %f: disksim_interface_internal_event: Entered  iface %p, disksim %p, syssimtime %f, junk %p\n", simtime, iface, disksim, syssimtime, junk );
-   fflush(outputfile);
-#endif
+   // fprintf (stderr, "disksim_internal_event\n");
 
    /* if next event time is less than now, error.  Also, if no event is  */
    /* ready to be handled, then this is a spurious callback -- it should */
@@ -419,10 +382,7 @@ disksim_interface_internal_event (
      exit (1);
    }
 
-#ifdef DEBUG_INTERFACE
-   fprintf( outputfile, "****** %lf: disksim_interface_internal_event: intq->time=%lf curtime=%lf\n", simtime, disksim->intq->time, curtime);
-   fflush(outputfile);
-#endif
+   // fprintf(stderr, "disksim_internal_event: intq->time=%f curtime=%f\n", disksim->intq->time, curtime);
 
    /* while next event time is same as now, handle next event */
    if(disksim->intq != NULL){
@@ -432,7 +392,9 @@ disksim_interface_internal_event (
    while ((disksim->intq != NULL) 
 	  && (disksim->intq->time <= (curtime + 0.0001))) 
    {
+       
      // fprintf (stderr, "handling internal event: type %d\n", disksim->intq->type);
+     
      disksim_simulate_event(event_count++);
    }
 
@@ -457,52 +419,41 @@ disksim_interface_internal_event (
 /* request (device number, block number, length, etc.).                  */
 
 void 
-disksim_interface_request_arrive (
-        struct disksim_interface *iface,
-        double syssimtime,
-        struct disksim_request *requestdesc)
+disksim_interface_request_arrive (struct disksim_interface *iface,
+				  double syssimtime, 
+				  struct disksim_request *requestdesc)
 {
-   ioreq_event *new_event;
-
-#ifdef DEBUG_INTERFACE
-    fprintf( outputfile, "%f: disksim_interface_request_arrive\n", simtime );
-    fflush( outputfile );
-#endif
+   ioreq_event *new;
 
    double curtime = syssimtime;
    disksim = iface->disksim;
 
-   new_event = (ioreq_event *) getfromextraq();
+   new = (ioreq_event *) getfromextraq();
 
-   assert (new_event != NULL);
-   new_event->type = IO_REQUEST_ARRIVE;
-   new_event->time = curtime;
-   new_event->busno = 0;
-   new_event->devno = requestdesc->devno;
-   new_event->blkno = requestdesc->blkno;
-   new_event->flags = requestdesc->flags;
-   new_event->bcount = requestdesc->bytecount;
-   new_event->batchno = requestdesc->batchno;
-   new_event->batch_complete = requestdesc->batch_complete;
+   assert (new != NULL);
+   new->type = IO_REQUEST_ARRIVE;
+   new->time = curtime;
+   new->busno = 0;
+   new->devno = requestdesc->devno;
+   new->blkno = requestdesc->blkno;
+   new->flags = requestdesc->flags;
+   new->bcount = requestdesc->bytecount / 512;
+   new->batchno = requestdesc->batchno;
+   new->batch_complete = requestdesc->batch_complete;
+      
+   new->flags |= TIME_CRITICAL;
+   
+   new->cause = 0;
+   new->opid = 0;
+   new->buf = requestdesc;
 
-   new_event->flags |= TIME_CRITICAL;
-
-   new_event->cause = 0;
-   new_event->opid = 0;
-   new_event->buf = requestdesc;
-
-   io_map_trace_request (new_event);
-
-#ifdef DEBUG_INTERFACE
-   fprintf( outputfile, "****** %f: disksim_interface_request_arrive  time %lf, type %d, devno %d, blkno %d, bcount %d, flags 0x%x\n", simtime, new_event->time, new_event->type, new_event->devno, new_event->blkno, new_event->bcount, new_event->flags  );
-   fflush(outputfile);
-#endif
+   io_map_trace_request (new);
 
    /* issue it into simulator */
    if (disksim->intq) {
      iface->desched_fn(0.0, iface->ctx);
    }
-   addtointq ((event *)new_event);
+   addtointq ((event *)new);
 
    /* while next event time is same as now, handle next event */
    while ((disksim->intq != NULL) 
@@ -523,32 +474,19 @@ disksim_interface_request_arrive (
 }
 
 
-void disksim_free_disksim(struct disksim_interface *iface) {
-#ifdef DEBUG_INTERFACE
-    fprintf( outputfile, "%f: disksim_free_disksim\n", simtime );
-    fflush( outputfile );
-#endif
 
+
+void disksim_free_disksim(struct disksim_interface *iface) {
   disksim_cleanup();
   free(iface->disksim);
   free(iface);
-  iface = NULL;
 }
 
 double disksim_time_to_msec(double x) { return x; }
 double disksim_time_from_msec(double x) { return x; }
 
-
 struct dm_disk_if *
-disksim_getdiskmodel(struct disksim_interface *i, int disknum)
+disksim_getdiskmodel(struct disksim_interface *i, int disknum) 
 {
-#ifdef DEBUG_INTERFACE
-    fprintf( outputfile, "%f: disksim_getdiskmodel\n", simtime );
-    fflush( outputfile );
-#endif
-
-    return i->disksim->diskinfo->disks[disknum]->model;
+  return i->disksim->diskinfo->disks[disknum]->model;
 }
-
-// End of file
-

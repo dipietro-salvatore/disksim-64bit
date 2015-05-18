@@ -9,15 +9,7 @@ extern"C"{
 struct dm_disk_if;
 
 /* prototype for disksim_disk param loader function */
-struct disk* disksim_disk_loadparams(struct lp_block *b, int *num);
-
-
-/* prototype for disksim_disk param loader function */
-struct dm_disk_if* dm_disk_loadparams(struct lp_block *b, int *num);
-
-
-/* prototype for disksim_disk param loader function */
-struct ioq *disksim_ioqueue_loadparams(struct lp_block *b, int printqueuestats, int printcritstats, int printidlestats, int printintarrstats, int printsizestats);
+struct disk *disksim_disk_loadparams(struct lp_block *b, int *num);
 
 typedef enum {
    DISKSIM_DISK_MODEL,

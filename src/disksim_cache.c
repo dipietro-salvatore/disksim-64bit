@@ -127,7 +127,7 @@ struct cache_if *disksim_cache_loadparams(struct lp_block *b)
     result = disksim_cachedev_loadparams(b);
     break;
   default:
-    fprintf(stderr, "*** error: Invalid cache type (%d) specified.\n", (int)IVAL(b->params[c]));
+    fprintf(stderr, "*** error: Invalid cache type (%d) specified.\n", IVAL(b->params[c]));
     return 0;
     break;
   }
@@ -140,6 +140,4 @@ struct cache_if *disksim_cache_loadparams(struct lp_block *b)
 
   return result;
 }
-
-// End of file
 

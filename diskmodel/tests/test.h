@@ -28,7 +28,5 @@
  */
 
 #include <stdio.h>
-#include <string.h>
 #include <diskmodel/dm.h>
 #include <libddbg/libddbg.h>
-#include "driver.h"

@@ -47,6 +47,5 @@ disksim_statload.o: disksim_statload.c /usr/include/stdc-predef.h \
  /usr/include/x86_64-linux-gnu/bits/inf.h \
  /usr/include/x86_64-linux-gnu/bits/nan.h \
  /usr/include/x86_64-linux-gnu/bits/mathdef.h \
- /usr/include/x86_64-linux-gnu/bits/mathcalls.h \
- /usr/include/x86_64-linux-gnu/bits/timex.h disksim_assertlib.h \
+ /usr/include/x86_64-linux-gnu/bits/mathcalls.h disksim_assertlib.h \
  disksim_reqflags.h

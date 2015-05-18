@@ -104,7 +104,7 @@ static void disksim_rand48_initialize ()
       return;
    }
 
-   disksim->rand48_info = (struct rand48_info *)DISKSIM_malloc (sizeof(rand48_into_t));
+   disksim->rand48_info = DISKSIM_malloc (sizeof(rand48_into_t));
    bzero ((char *)disksim->rand48_info, sizeof(rand48_into_t));
 
    /* initialization */

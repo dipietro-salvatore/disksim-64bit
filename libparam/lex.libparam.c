@@ -606,12 +606,18 @@ char *libparamtext;
 
 #line 36 "libparam.lex"
 #include <string.h>
+#ifndef WIN32
 #include <libgen.h> // dirname(), basename()
+#endif
 #include <libddbg/libddbg.h>
 #include <errno.h>
 
 #include "libparam.h"
 #include "libparam.tab.h"
+
+#ifdef WIN32
+   extern double strtod();
+#endif
 
 #define MAX_INPUT_FILES 32
   int top_file = 0;
@@ -625,7 +631,7 @@ char *libparamtext;
   int top_path = 0;
   char *lp_cwd;
   char *lp_filename;
-#line 629 "lex.libparam.c"
+#line 635 "lex.libparam.c"
 
 #define INITIAL 0
 #define src 1
@@ -840,10 +846,10 @@ YY_DECL
 		}
 
 	{
-#line 82 "libparam.lex"
+#line 88 "libparam.lex"
 
 
-#line 847 "lex.libparam.c"
+#line 853 "lex.libparam.c"
 
 	while ( 1 )		/* loops until end-of-file is reached */
 		{
@@ -912,107 +918,107 @@ do_action:	/* This label is used only to access EOF actions. */
 
 case 1:
 YY_RULE_SETUP
-#line 84 "libparam.lex"
+#line 90 "libparam.lex"
 ; 
 	YY_BREAK
 case 2:
 /* rule 2 can match eol */
 YY_RULE_SETUP
-#line 85 "libparam.lex"
+#line 91 "libparam.lex"
 { lp_lineno++; };
 	YY_BREAK
 case 3:
 YY_RULE_SETUP
-#line 87 "libparam.lex"
+#line 93 "libparam.lex"
 { return SEMI; };
 	YY_BREAK
 case 4:
 YY_RULE_SETUP
-#line 88 "libparam.lex"
+#line 94 "libparam.lex"
 { return LBRAK; };
 	YY_BREAK
 case 5:
 YY_RULE_SETUP
-#line 89 "libparam.lex"
+#line 95 "libparam.lex"
 { return RBRAK; };
 	YY_BREAK
 case 6:
 YY_RULE_SETUP
-#line 90 "libparam.lex"
+#line 96 "libparam.lex"
 { return COMMA; };
 	YY_BREAK
 case 7:
 YY_RULE_SETUP
-#line 91 "libparam.lex"
+#line 97 "libparam.lex"
 { return EQUAL; };
 	YY_BREAK
 case 8:
 YY_RULE_SETUP
-#line 92 "libparam.lex"
+#line 98 "libparam.lex"
 { return LBRACE; };
 	YY_BREAK
 case 9:
 YY_RULE_SETUP
-#line 93 "libparam.lex"
+#line 99 "libparam.lex"
 { return RBRACE; };
 	YY_BREAK
 case 10:
 YY_RULE_SETUP
-#line 94 "libparam.lex"
+#line 100 "libparam.lex"
 ;
 	YY_BREAK
 case 11:
 YY_RULE_SETUP
-#line 95 "libparam.lex"
+#line 101 "libparam.lex"
 { return QU; }
 	YY_BREAK
 case 12:
 YY_RULE_SETUP
-#line 96 "libparam.lex"
+#line 102 "libparam.lex"
 { return COLON; }
 	YY_BREAK
 case 13:
 YY_RULE_SETUP
-#line 97 "libparam.lex"
+#line 103 "libparam.lex"
 { return DOTDOT; }
 	YY_BREAK
 case 14:
 YY_RULE_SETUP
-#line 98 "libparam.lex"
+#line 104 "libparam.lex"
 BEGIN(src);
 	YY_BREAK
 case 15:
 YY_RULE_SETUP
-#line 100 "libparam.lex"
+#line 106 "libparam.lex"
 { return TOPOLOGY; }
 	YY_BREAK
 case 16:
 YY_RULE_SETUP
-#line 101 "libparam.lex"
+#line 107 "libparam.lex"
 { return INSTANTIATE; }
 	YY_BREAK
 case 17:
 YY_RULE_SETUP
-#line 102 "libparam.lex"
+#line 108 "libparam.lex"
 { return AS; }
 	YY_BREAK
 case 18:
 YY_RULE_SETUP
-#line 104 "libparam.lex"
+#line 110 "libparam.lex"
 { 
   libparamlval.i = atoi(libparamtext); return DECINT; 
 };
 	YY_BREAK
 case 19:
 YY_RULE_SETUP
-#line 108 "libparam.lex"
+#line 114 "libparam.lex"
 { 
   libparamlval.i = strtol(libparamtext, 0, 16); return HEXINT; 
 };
 	YY_BREAK
 case 20:
 YY_RULE_SETUP
-#line 112 "libparam.lex"
+#line 118 "libparam.lex"
 { 
   libparamlval.d = strtod(libparamtext, 0); 
   return FLOAT; 
@@ -1020,7 +1026,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 21:
 YY_RULE_SETUP
-#line 117 "libparam.lex"
+#line 123 "libparam.lex"
 {
 /*    printf("STRING: \"%s\"\n", libparamtext);  */
   libparamlval.s = strdup(libparamtext); return STRING; 
@@ -1028,7 +1034,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 22:
 YY_RULE_SETUP
-#line 122 "libparam.lex"
+#line 128 "libparam.lex"
 {
   char *dirc, *basec;
   char *dir, *base;
@@ -1050,6 +1056,16 @@ YY_RULE_SETUP
 
   paths[top_path++] = lp_cwd;
 
+#ifdef WIN32
+  // Dushyanth: an empty directory component is same as "."
+  if (!strcmp(dir, ""))
+	strcpy(dir, ".");
+	
+  if (!strcmp(lp_cwd,"")) {
+	lp_cwd = ".";
+	paths[top_path-1] = lp_cwd;
+	}
+#endif
 
   // XXX move all of this logic into util.c
 
@@ -1096,7 +1112,7 @@ YY_RULE_SETUP
       goto fail;
     }
   }
-  
+
 
  fail:
     fprintf(stderr, "*** error: couldn't open %s : %s\n", libparamtext, strerror(errno));
@@ -1112,7 +1128,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case YY_STATE_EOF(INITIAL):
 case YY_STATE_EOF(src):
-#line 203 "libparam.lex"
+#line 219 "libparam.lex"
 {
 
     /* printf("lexer got EOF\n"); */
@@ -1135,10 +1151,10 @@ case YY_STATE_EOF(src):
 	YY_BREAK
 case 23:
 YY_RULE_SETUP
-#line 222 "libparam.lex"
+#line 238 "libparam.lex"
 ECHO;
 	YY_BREAK
-#line 1142 "lex.libparam.c"
+#line 1158 "lex.libparam.c"
 
 	case YY_END_OF_BUFFER:
 		{
@@ -2143,7 +2159,7 @@ void libparamfree (void * ptr )
 
 #define YYTABLES_NAME "yytables"
 
-#line 221 "libparam.lex"
+#line 237 "libparam.lex"
 
 
 

@@ -33,43 +33,6 @@ disksim_iotrace.o: disksim_iotrace.c /usr/include/stdc-predef.h config.h \
  /usr/include/x86_64-linux-gnu/bits/inf.h \
  /usr/include/x86_64-linux-gnu/bits/nan.h \
  /usr/include/x86_64-linux-gnu/bits/mathdef.h \
- /usr/include/x86_64-linux-gnu/bits/mathcalls.h \
- /usr/include/x86_64-linux-gnu/bits/timex.h disksim_assertlib.h \
+ /usr/include/x86_64-linux-gnu/bits/mathcalls.h disksim_assertlib.h \
  /usr/include/assert.h disksim_reqflags.h disksim_hptrace.h \
- disksim_iotrace.h disksim_simresult.h disksim_disk.h \
- /usr/include/c++/4.9/map /usr/include/c++/4.9/bits/stl_tree.h \
- /usr/include/c++/4.9/bits/stl_algobase.h \
- /usr/include/x86_64-linux-gnu/c++/4.9/bits/c++config.h \
- /usr/include/x86_64-linux-gnu/c++/4.9/bits/os_defines.h \
- /usr/include/x86_64-linux-gnu/c++/4.9/bits/cpu_defines.h \
- /usr/include/c++/4.9/bits/functexcept.h \
- /usr/include/c++/4.9/bits/exception_defines.h \
- /usr/include/c++/4.9/bits/cpp_type_traits.h \
- /usr/include/c++/4.9/ext/type_traits.h \
- /usr/include/c++/4.9/ext/numeric_traits.h \
- /usr/include/c++/4.9/bits/stl_pair.h /usr/include/c++/4.9/bits/move.h \
- /usr/include/c++/4.9/bits/concept_check.h \
- /usr/include/c++/4.9/bits/stl_iterator_base_types.h \
- /usr/include/c++/4.9/bits/stl_iterator_base_funcs.h \
- /usr/include/c++/4.9/debug/debug.h \
- /usr/include/c++/4.9/bits/stl_iterator.h \
- /usr/include/c++/4.9/bits/ptr_traits.h \
- /usr/include/c++/4.9/bits/predefined_ops.h \
- /usr/include/c++/4.9/bits/allocator.h \
- /usr/include/x86_64-linux-gnu/c++/4.9/bits/c++allocator.h \
- /usr/include/c++/4.9/ext/new_allocator.h /usr/include/c++/4.9/new \
- /usr/include/c++/4.9/exception \
- /usr/include/c++/4.9/bits/atomic_lockfree_defines.h \
- /usr/include/c++/4.9/bits/memoryfwd.h \
- /usr/include/c++/4.9/bits/stl_function.h \
- /usr/include/c++/4.9/backward/binders.h \
- /usr/include/c++/4.9/ext/alloc_traits.h \
- /usr/include/c++/4.9/bits/stl_map.h \
- /usr/include/c++/4.9/bits/stl_multimap.h \
- /usr/include/c++/4.9/bits/range_access.h disksim_stat.h disksim_iosim.h \
- disksim_ioface.h disksim_device.h disksim_orgface.h disksim_iodriver.h \
- disksim_bus.h disksim_controller.h disksim_ioqueue.h \
- ../diskmodel/include/diskmodel/dm.h \
- ../diskmodel/include/diskmodel/dm_types.h /usr/include/inttypes.h \
- /usr/lib/gcc/x86_64-linux-gnu/4.9/include/stdint.h /usr/include/stdint.h \
- /usr/include/x86_64-linux-gnu/bits/wchar.h
+ disksim_iotrace.h

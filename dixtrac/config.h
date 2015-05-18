@@ -135,10 +135,10 @@
 #include "scsi_da.h"
 #include "scsi_conv.h"
 
-#endif
-
 #define  STATE_THREADS 1
 #include "st.h"
+
+#endif
 
 #if HAVE_CAMLIB_H
 #include <cam/cam.h>

@@ -103,10 +103,8 @@ into which data are collected.  This file is mandatory.
 Section~\ref{output.statdefs} describes its use.
 
 PARAM Output file for trace of I/O requests simulated		S	0
-INIT if( NULL != (OUTIOS = fopen(s, "w"))) {
-INIT     strcpy(disksim->outiosfilename, s);
-INIT     fprintf(OUTIOS, "simtime,devno,blkno,blkcnt,flags,queueDepth,tagID,curr\n" );
-INIT }
+TEST (outios = fopen(s, "w")) != NULL
+INIT strcpy(disksim->outiosfilename, s);
 
 This specifies the name of the output file to contain a trace of disk
 request arrivals (in the default ASCII trace format described in
@@ -117,11 +115,8 @@ pathological) workloads produced by a system-level model.
 
 
 PARAM Detailed execution trace		S	0
-INIT if( NULL != (disksim->exectrace = fopen(s, "w"))) {
-INIT     disksim->exectrace_fn = strdup( s );
-INIT     fprintf(disksim->exectrace, "simtime,tagID,devno,blkno,blkcnt,flags,time\n" );
-INIT     fflush(disksim->exectrace);
-INIT }
+TEST (disksim->exectrace = fopen(s, "w")) != NULL
+INIT disksim->exectrace_fn = strdup(s);
 
 This specifies the name of the output file to contain a detailed trace
 of system execution -- req issue/completion, etc.

@@ -150,9 +150,9 @@ scsi_init(char *devname)
   printf("Command queueing%s allowed.\n",(ictl_val == 1 ? "" : " not"));
 #endif
   ictl_val = 0;
-  if ( 0 > ioctl(fd,SG_SET_FORCE_PACK_ID,&ictl_val)) {
+/*  if ( 0 > ioctl(fd,SG_SET_FORCE_PACK_ID,&ictl_val)) {
     error_handler("Could not set FORCE_PACK_ID  on device %s \n",devname);
-  }
+  } */
   ictl_val = BIG_BUF_SIZE;
   if ( 0 > ioctl(fd,SG_SET_RESERVED_SIZE,&ictl_val)) {
     error_handler("Problems with ioctl on device %s!\n",devname);

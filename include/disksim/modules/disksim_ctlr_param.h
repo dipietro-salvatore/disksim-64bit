@@ -11,14 +11,6 @@ struct dm_disk_if;
 /* prototype for disksim_ctlr param loader function */
 struct controller *disksim_ctlr_loadparams(struct lp_block *b);
 
-
-/* prototype for disksim_ctlr param loader function */
-struct cache_if *disksim_cache_loadparams(struct lp_block *b);
-
-
-/* prototype for disksim_ctlr param loader function */
-struct ioq *disksim_ioqueue_loadparams(struct lp_block *b, int printqueuestats, int printcritstats, int printidlestats, int printintarrstats, int printsizestats);
-
 typedef enum {
    DISKSIM_CTLR_TYPE,
    DISKSIM_CTLR_SCALE_FOR_DELAYS,

@@ -88,7 +88,7 @@ int ddbg_register(char *classname) {
 
   ddbg_classes_len *= 2;
   ddbg_classes_len++;
-  ddbg_classes = (struct ddbg_class *)realloc(ddbg_classes, ddbg_classes_len * sizeof(struct ddbg_class));
+  ddbg_classes = realloc(ddbg_classes, ddbg_classes_len * sizeof(struct ddbg_class));
   
  found:
   ddbg_classes[ddbg_class_max].name = strdup(classname);
@@ -100,14 +100,14 @@ int ddbg_register(char *classname) {
 
 // start logging (class,instance) traces.  -1 is the wildcard which logs
 // all instances from that class.
-void ddbg_enable(int aclass, int ainstance) {
-  ddbg_assert(aclass < ddbg_class_max);
-  ddbg_assert((ainstance < DDBG_MAX_INSTANCE) || (ainstance == -1));
-  if(ainstance != -1) {
-    BIT_SET(ddbg_classes[aclass].instances, ainstance);
+void ddbg_enable(int class, int instance) {
+  ddbg_assert(class < ddbg_class_max);
+  ddbg_assert((instance < DDBG_MAX_INSTANCE) || (instance == -1));
+  if(instance != -1) {
+    BIT_SET(ddbg_classes[class].instances, instance);
   }
   else {
-    bit_setall(ddbg_classes[aclass].instances, DDBG_MAX_INSTANCE);
+    bit_setall(ddbg_classes[class].instances, DDBG_MAX_INSTANCE);
   }
 }
 

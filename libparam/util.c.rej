@@ -1,0 +1,11 @@
+--- libparam/util.c 2009-12-29 20:56:51.143862773 +0900
++++ libparam/util.c 2009-12-29 20:34:08.735171314 +0900
+@@ -47,7 +47,7 @@
+ 
+ #include 
+ 
+-//#include 
++#include 
+ 
+ #include "libparam.h"
+ #include "bitvector.h"

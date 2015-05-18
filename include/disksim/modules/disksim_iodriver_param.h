@@ -11,10 +11,6 @@ struct dm_disk_if;
 /* prototype for disksim_iodriver param loader function */
 struct iodriver *disksim_iodriver_loadparams(struct lp_block *b);
 
-
-/* prototype for disksim_iodriver param loader function */
-struct ioq *disksim_ioqueue_loadparams(struct lp_block *b, int printqueuestats, int printcritstats, int printidlestats, int printintarrstats, int printsizestats);
-
 typedef enum {
    DISKSIM_IODRIVER_TYPE,
    DISKSIM_IODRIVER_CONSTANT_ACCESS_TIME,

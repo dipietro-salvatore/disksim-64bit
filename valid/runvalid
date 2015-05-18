@@ -1,8 +1,12 @@
 #!/bin/sh
 
+if [ "x${RUNVALID_PREFIX}" != "x" ];
+then
+PREFIX=${RUNVALID_PREFIX}
+else
 PREFIX=../src
+fi
 
-echo ""
 echo "These results represent actual drive validation experiments"
 
 echo ""
@@ -54,6 +58,7 @@ echo ""
 echo "DEC_RZ26_validate (rms should be about 0.340)"
 ${PREFIX}/disksim dec_rz26.parv dec_rz26.outv validate dec_rz26.trace 0\
 && ${PREFIX}/rms dec_rz26.outv dec_rz26.outv -1 -1 1
+
 
 echo ""
 echo "The remaining tests exercise other DiskSim components"
@@ -112,24 +117,21 @@ echo "Simpledisk instead of original model (avg. resp. should be about 13.5ms)"
 #&& grep "IOdriver #0 device #2 Response time average" out.synthmultidevice\
 #&& grep "IOdriver #0 device #3 Response time average" out.synthmultidevice
 
-echo ""
 echo "3 different disks"
 echo "(avg. resps. should be about 10.937)"
 ${PREFIX}/disksim 3disks.parv 3disks.outv ascii 0 1\
 && grep "IOdriver Response time average" 3disks.outv\
 
-echo ""
 echo "3 disks on separate controllers"
 echo "(avg. resps. should be about 10.937)"
 ${PREFIX}/disksim 3disks2.parv 3disks2.outv ascii 0 1\
 && grep "IOdriver Response time average" 3disks2.outv\
 
-# HPL trace input no longer supported
-#echo ""
-#echo "Note: this validates HP trace input, *not* the corresponding traced disk"
-#echo "HP srt trace input (avg. resp should be about 48.8ms)"
-# ${PREFIX}/disksim hplajw.parv hplajw.outv hpl ajw.1week.srt 0\
-#&& grep "IOdriver Response time average" hplajw.outv
+echo ""
+echo "Note: this validates HP trace input, *not* the corresponding traced disk"
+echo "HP srt trace input (avg. resp should be about 48.8ms)"
+ ${PREFIX}/disksim hplajw.parv hplajw.outv hpl ajw.1week.srt 0\
+&& grep "IOdriver Response time average" hplajw.outv
 
 #echo ""
 #echo "Checkpoint/restore version of HP srt trace input (should be same as above)"
@@ -137,12 +139,12 @@ ${PREFIX}/disksim 3disks2.parv 3disks2.outv ascii 0 1\
 #&& grep "IOdriver Response time average" out.hplajw
 
 echo ""
-echo "ASCII input (avg. resp should be about 13.8 msec)"
+echo "ASCII input (avg. resp should be about 13.8ms)"
  ${PREFIX}/disksim ascii.parv ascii.outv ascii stdin 0 < ascii.trace\
 && grep "IOdriver Response time average" ascii.outv
 
 echo ""
-echo "syssim: externally-controlled DiskSim (avg. resp should be about 8.9 msec)"
+echo "syssim: externally-controlled DiskSim (avg. resp should be about 8.9ms)"
 ${PREFIX}/syssim cheetah4LP.parv syssim.outv 2676846\
 && grep "IOdriver Response time average" syssim.outv
 

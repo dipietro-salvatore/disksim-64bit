@@ -11,10 +11,6 @@ struct dm_disk_if;
 /* prototype for disksim_simpledisk param loader function */
 struct simpledisk *disksim_simpledisk_loadparams(struct lp_block *b);
 
-
-/* prototype for disksim_simpledisk param loader function */
-struct ioq *disksim_ioqueue_loadparams(struct lp_block *b, int printqueuestats, int printcritstats, int printidlestats, int printintarrstats, int printsizestats);
-
 typedef enum {
    DISKSIM_SIMPLEDISK_SCHEDULER,
    DISKSIM_SIMPLEDISK_MAX_QUEUE_LENGTH,

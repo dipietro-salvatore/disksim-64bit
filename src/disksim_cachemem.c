@@ -106,13 +106,13 @@
 
 /* state components of atom */
 
-#define CACHE_VALID             0x80000000
-#define CACHE_DIRTY             0x40000000
-#define CACHE_LOCKDOWN          0x20000000
-#define CACHE_LOCKED            0x10000000
-#define CACHE_ATOMFLUSH         0x08000000
-#define CACHE_REALLOCATE_WRITE  0x04000000
-#define CACHE_SEGNUM            0x000000FF		/* for S-LRU */
+#define CACHE_VALID		0x80000000
+#define CACHE_DIRTY		0x40000000
+#define CACHE_LOCKDOWN		0x20000000
+#define CACHE_LOCKED		0x10000000
+#define CACHE_ATOMFLUSH		0x08000000
+#define CACHE_REALLOCATE_WRITE	0x04000000
+#define CACHE_SEGNUM		0x000000FF		/* for S-LRU */
 
 /* cache event flags */
 
@@ -121,11 +121,11 @@
 
 /* cache event types */
 
-#define	CACHE_EVENT_IOREQ           0
-#define CACHE_EVENT_ALLOCATE        1
-#define CACHE_EVENT_READ            2
-#define CACHE_EVENT_WRITE           3
-#define CACHE_EVENT_SYNC            4
+#define	CACHE_EVENT_IOREQ		0
+#define CACHE_EVENT_ALLOCATE		1
+#define CACHE_EVENT_READ		2
+#define CACHE_EVENT_WRITE		3
+#define CACHE_EVENT_SYNC		4
 #define CACHE_EVENT_SYNCPART		5
 #define CACHE_EVENT_READEXTRA		6
 #define CACHE_EVENT_WRITEFILLEXTRA	7
@@ -146,33 +146,19 @@ static int cache_write_continue (struct cache_mem *cache, struct cache_mem_event
 int cachemem_get_maxreqsize (struct cache_if *c)
 {
   struct cache_mem *cache = (struct cache_mem *)c;
-
-#ifdef DEBUG_CACHEMEM
-  fprintf( outputfile, "*** %f: cachemem_get_maxreqsize  maxreqsize %d\n", simtime, cache->maxreqsize );
-#endif
-
   return cache->maxreqsize;
 }
 
 
 static void cache_empty_donefunc (void *doneparam, ioreq_event *req)
 {
-#ifdef DEBUG_CACHEMEM
-    fprintf( outputfile, "*** %f: cache_empty_donefunc  blkno %d, bcount %d, flags %x\n", simtime, req->blkno, req->bcount, req->flags );
-#endif
-
-  addtoextraq((event *) req);
+   addtoextraq((event *) req);
 }
 
 
 static int cache_concatok (void *concatokparam, int blkno1, int bcount1, int blkno2, int bcount2)
 {
-   struct cache_mem *cache = (struct cache_mem *)concatokparam;
-
-#ifdef DEBUG_CACHEMEM
-    fprintf( outputfile, "*** %f: cache_concatok  blkno1 %d, bcount1 %d, blkno2 %d, bcount2 %d\n", simtime, blkno1, bcount1, blkno2, bcount2 );
-#endif
-
+   struct cache_mem *cache = concatokparam;
    if ((cache->size) && (cache->maxscatgath != 0)) {
       int linesize = max(cache->linesize, 1);
       int lineno1 = blkno1 / linesize;
@@ -194,37 +180,27 @@ static void cache_waitfor_IO (struct cache_mem *cache, int waitcnt, struct cache
       cachereq->next->prev = cachereq;
    }
    cache->IOwaiters = cachereq;
-
-#ifdef DEBUG_CACHEMEM
-   fprintf (outputfile, "*** %f: cache_waitfor_IO  IOwaiters %x, next %x, nextprev %x\n", simtime, cachereq, cachereq->next, ((cachereq->next) ? cachereq->next->prev : 0));
-#endif
-
+/*
+fprintf (outputfile, "IOwaiters %x, next %x, nextprev %x\n", cachereq, cachereq->next, ((cachereq->next) ? cachereq->next->prev : 0));
+*/
    cachereq->accblkno = ioacc->blkno;
 }
 
 
-static void cache_insert_new_into_hash (struct cache_mem *cache, cache_atom *new_cache_atom)
+static void cache_insert_new_into_hash (struct cache_mem *cache, cache_atom *new)
 {
-#ifdef DEBUG_CACHEMEM
-   fprintf (outputfile, "*** %f: cache_insert_new_into_hash  devno %d, lbn %d, state 0x%x\n", simtime, new_cache_atom->devno, new_cache_atom->lbn, new_cache_atom->state );
-#endif
-
-   new_cache_atom->hash_next = cache->hash[(new_cache_atom->lbn & CACHE_HASHMASK)];
-   cache->hash[(new_cache_atom->lbn & CACHE_HASHMASK)] = new_cache_atom;
-   new_cache_atom->hash_prev = NULL;
-   if (new_cache_atom->hash_next) {
-      new_cache_atom->hash_next->hash_prev = new_cache_atom;
+   new->hash_next = cache->hash[(new->lbn & CACHE_HASHMASK)];
+   cache->hash[(new->lbn & CACHE_HASHMASK)] = new;
+   new->hash_prev = NULL;
+   if (new->hash_next) {
+      new->hash_next->hash_prev = new;
    }
 }
 
 
 static void cache_remove_entry_from_hash (struct cache_mem *cache, cache_atom *old)
 {
-#ifdef DEBUG_CACHEMEM
-   fprintf (outputfile, "*** %f: cache_remove_entry_from_hash\n", simtime );
-#endif
-
-   /* Line must be in hash if to be removed! */
+	  /* Line must be in hash if to be removed! */
    ASSERT((old->hash_prev != NULL) || (old->hash_next != NULL) || (cache->hash[(old->lbn & CACHE_HASHMASK)] == old));
 
    if (old->hash_prev) {
@@ -252,11 +228,6 @@ static int cache_count_dirty_atoms (struct cache_mem *cache)
          tmp = tmp->hash_next;
       }
    }
-
-#ifdef DEBUG_CACHEMEM
-   fprintf (outputfile, "*** %f: cache_count_dirty_atoms  dirty %d\n", simtime, dirty );
-#endif
-
    return(dirty);
 }
 
@@ -264,11 +235,9 @@ static int cache_count_dirty_atoms (struct cache_mem *cache)
 static cache_atom * cache_find_atom (struct cache_mem *cache, int devno, int lbn)
 {
    cache_atom *tmp = cache->hash[(lbn & CACHE_HASHMASK)];
-
-#ifdef DEBUG_CACHEMEM
-   fprintf (outputfile, "*** %f: Entered cache_find_atom: devno %d, lbn %d, CACHE_HASHMASK %x, setno %d\n", simtime,  devno, lbn, CACHE_HASHMASK, (lbn & CACHE_HASHMASK));
-#endif
-
+/*
+fprintf (outputfile, "Entered cache_find_atom: devno %d, lbn %d, CACHE_HASHMASK %x, setno %d\n", devno, lbn, CACHE_HASHMASK, (lbn & CACHE_HASHMASK));
+*/
    while ((tmp) && ((tmp->lbn != lbn) || (tmp->devno != devno))) {
       tmp = tmp->hash_next;
    }
@@ -359,10 +328,6 @@ static void cache_add_to_lrulist (cache_mapentry *map,
 {
    cache_atom **head;
 
-#ifdef DEBUG_CACHEMEM
-   fprintf (outputfile, "*** %f: cache_add_to_lrulist  devno %d, lbn %d, state 0x%x, segnum %d\n", simtime, line->devno, line->lbn, line->state, segnum );
-#endif
-
    if (segnum == CACHE_SEGNUM) {
       head = &map->freelist;
    } else {
@@ -386,10 +351,6 @@ static void cache_add_to_lrulist (cache_mapentry *map,
 static void cache_remove_from_lrulist (cache_mapentry *map, cache_atom *line, int segnum)
 {
    cache_atom **head;
-
-#ifdef DEBUG_CACHEMEM
-   fprintf (outputfile, "*** %f: cache_remove_from_lrulist  devno %d, lbn %d, state 0x%x, segnum %d\n", simtime, line->devno, line->lbn, line->state, segnum );
-#endif
 
    if (segnum == CACHE_SEGNUM) {
       head = &map->freelist;
@@ -418,10 +379,6 @@ static void cache_access (struct cache_mem *cache, cache_atom *line)
 {
    int set;
    int segnum = 0;
-
-#ifdef DEBUG_CACHEMEM
-   fprintf (outputfile, "*** %f: cache_access\n", simtime );
-#endif
 
    if (cache->replacepolicy != CACHE_REPLACE_SLRU) {
       return;
@@ -452,9 +409,7 @@ static void cache_access (struct cache_mem *cache, cache_atom *line)
 
 static void cache_replace_waitforline (struct cache_mem *cache, struct cache_mem_event *allocdesc)
 {
-#ifdef DEBUG_CACHEMEM
-   fprintf (outputfile, "*** %f: entered cache_replace_waitforline: linelocked %d\n", simtime, (allocdesc->flags & CACHE_FLAG_LINELOCKED_ALLOCATE));
-#endif
+   // fprintf (outputfile, "entered cache_replace_waitforline: linelocked %d\n", (allocdesc->flags & CACHE_FLAG_LINELOCKED_ALLOCATE));
 
    if (cache->linewaiters) {
       allocdesc->next = cache->linewaiters->next;
@@ -504,24 +459,24 @@ static void cache_add_to_lockstruct (struct cachelockw **head, void *identifier)
       tmp = (struct cachelockw *) getfromextraq();
 	  memset((char *)tmp, 0, sizeof(struct cachelockw));
       /* bzero ((char *)tmp, sizeof(struct cachelockw)); */
-      tmp->entry[0] = (struct cache_mem_event *)identifier;
+      tmp->entry[0] = identifier;
       *head = tmp;
    } else {
       while (tmp->next) {
          for (i=0; i<CACHE_LOCKSPERSTRUCT; i++) {
-            if (tmp->entry[i] == (struct cache_mem_event *)identifier) {
+            if (tmp->entry[i] == identifier) {
                return;
             }
          }
          tmp = tmp->next;
       }
       for (i=0; i<CACHE_LOCKSPERSTRUCT; i++) {
-         if (tmp->entry[i] == (struct cache_mem_event *)identifier) {
+         if (tmp->entry[i] == identifier) {
             return;
          } else if (tmp->entry[i]) {
             start = TRUE;
          } else if (start) {
-            tmp->entry[i] = (struct cache_mem_event *)identifier;
+            tmp->entry[i] = identifier;
             return;
          }
       }
@@ -529,7 +484,7 @@ static void cache_add_to_lockstruct (struct cachelockw **head, void *identifier)
       tmp = tmp->next;
 	  memset ((char *)tmp, 0, sizeof(struct cachelockw));
       /* bzero ((char *)tmp, sizeof(struct cachelockw)); */
-      tmp->entry[0] = (struct cache_mem_event *)identifier;
+      tmp->entry[0] = identifier;
    }
 }
 
@@ -783,9 +738,7 @@ static int cache_issue_flushreq (struct cache_mem *cache, int start, int end, ca
    ioreq_event *flushwait;
    int waiting = (cache->IOwaiters == waiter) ? 1 : 0;
 
-#ifdef DEBUG_CACHEMEM
-   fprintf (outputfile, "*** %f: Entered cache_issue_flushreq: start %d, end %d\n", simtime, start, end);
-#endif
+   // fprintf (outputfile, "Entered issue_flushreq: start %d, end %d\n", start, end);
 
    flushreq = (ioreq_event *) getfromextraq();
    flushreq->devno = startatom->devno;
@@ -817,9 +770,7 @@ static int cache_issue_flushreq (struct cache_mem *cache, int start, int end, ca
 
    cache_get_read_lock_range(cache, start, end, startatom, waiter);
 
-#ifdef DEBUG_CACHEMEM
-   fprintf (outputfile, "*** %f: cache_issue_flushreq  Issuing dirty block write-back: blkno %d, bcount %d, devno %d\n", simtime, flushreq->blkno, flushreq->bcount, flushreq->devno);
-#endif
+   // fprintf (outputfile, "Issueing dirty block write-back: blkno %d, bcount %d, devno %d\n", flushreq->blkno, flushreq->bcount, flushreq->devno);
 
    (*cache->issuefunc)(cache->issueparam, flushreq);
    return(1);
@@ -866,9 +817,7 @@ static int cache_initiate_dirty_block_flush (struct cache_mem *cache, cache_atom
    cache_atom *tmp = dirtyline;
    int flushcnt = 0;
 
-#ifdef DEBUG_CACHEMEM
-   fprintf (outputfile, "*** %f: cache_initiate_dirty_block_flush: devno %d, lbn %d, state 0x%x\n", simtime, dirtyline->devno, dirtyline->lbn, dirtyline->state );
-#endif
+   // fprintf (outputfile, "Entered cache_initiate_dirty_block_flush: %d\n", dirtyline->lbn);
 
    while (tmp) {
       int writelocked = cache_atom_iswritelocked(cache, tmp);
@@ -938,10 +887,6 @@ static void cache_cleanup_flushdesc (struct cache_mem_event *flushdesc)
 
 static void cache_periodic_flush (timer_event *timereq)
 {
-#ifdef DEBUG_CACHEMEM
-   fprintf( outputfile, "*** %f: cache_periodic_flush\n", simtime );
-#endif
-
    struct cache_mem *cache = (struct cache_mem *) timereq->ptr;
    int segcnt = (cache->replacepolicy == CACHE_REPLACE_SLRU) ? cache->numsegs : 1;
    int i, j;
@@ -974,15 +919,13 @@ static void cache_periodic_flush (timer_event *timereq)
    timereq->time += cache->flush_period;
    addtointq((event *)timereq);
 
-#ifdef DEBUG_CACHEMEM
-   fprintf (outputfile, "*** %f: cache_periodic_flush, %d flushes started\n", simtime, flushcnt);
-#endif
+   // fprintf (outputfile, "%f: cache_periodic_flush, %d flushes started\n", simtime, flushcnt);
 }
 
 
 static void cache_idletime_detected (void *idleworkparam, int idledevno)
 {
-   struct cache_mem *cache = (struct cache_mem *)idleworkparam;
+   struct cache_mem *cache = idleworkparam;
    cache_atom *line = cache_get_replace_startpoint(cache, 0);
    cache_atom *stop = line;
    cache_atom *tmp;
@@ -1061,11 +1004,6 @@ static int cache_replace (struct cache_mem *cache, int set, struct cache_mem_eve
    cache_atom *stop;
    int dirty = FALSE;
    int locked = FALSE;
-
-#ifdef DEBUG_CACHEMEM
-   fprintf( outputfile, "*** %f: cache_replace\n", simtime );
-#endif
-
    struct cache_mem_event *flushdesc = (cache->allocatepolicy & CACHE_ALLOCATE_NONDIRTY) ? NULL : allocdesc;
 
    if (cache->map[set].freelist) {
@@ -1134,9 +1072,7 @@ static int cache_get_free_atom (struct cache_mem *cache, int lbn, cache_atom **r
    int writeouts = 0;
    int set = (cache->mapmask) ? (lbn % cache->mapmask) : 0;
 
-#ifdef DEBUG_CACHEMEM
-   fprintf (outputfile, "*** %f: cache_get_free_atom: lbn %d, set %d, freelist %p\n", simtime, lbn, set, cache->map[set].freelist);
-#endif
+   // fprintf (outputfile, "Entered cache_get_free_atom: lbn %d, set %d, freelist %p\n", lbn, set, cache->map[set].freelist);
 
    if (cache->map[set].freelist == NULL) {
       writeouts = cache_replace(cache, set, allocdesc);
@@ -1154,7 +1090,7 @@ avoid allocation replication */
 struct cache_mem_event *cache_allocate_space_continue (struct cache_mem *cache, struct cache_mem_event *allocdesc)
 {
    int numwrites = 0;
-   cache_atom *new_cache_atom;
+   cache_atom *new;
 /*
    cache_atom *toclean = NULL;
    cache_atom *tocleanlast;
@@ -1168,9 +1104,7 @@ struct cache_mem_event *cache_allocate_space_continue (struct cache_mem *cache, 
    cache_atom *lineprev = allocdesc->lineprev;
    int linesize = (cache->linesize) ? cache->linesize : 1;
 
-#ifdef DEBUG_CACHEMEM
-   fprintf (outputfile, "*** %f: Entered cache_allocate_space_continue: devno %d, lbn %d, stop %d\n", simtime, devno, lbn, stop);
-#endif
+   // fprintf (outputfile, "Entered allocate_space_continue: lbn %d, stop %d\n", lbn, stop);
 
    if (allocdesc->waitees) {
       struct cache_mem_event *rwdesc = allocdesc->waitees;
@@ -1183,44 +1117,44 @@ struct cache_mem_event *cache_allocate_space_continue (struct cache_mem *cache, 
       return(NULL);
    }
    while (lbn < stop) {
-      if ((new_cache_atom = cleaned) == NULL) {
-         numwrites += cache_get_free_atom(cache, lbn, &new_cache_atom, allocdesc);
+      if ((new = cleaned) == NULL) {
+         numwrites += cache_get_free_atom(cache, lbn, &new, allocdesc);
       }
       if (numwrites == 0) {
-	 ASSERT(new_cache_atom != NULL);
+	 ASSERT(new != NULL);
          do {
-            new_cache_atom->devno = devno;
-            new_cache_atom->lbn = lbn;
+            new->devno = devno;
+            new->lbn = lbn;
 		 /* Re-allocated cache atom must not still be locked */
-	    ASSERT((!new_cache_atom->writelock) && (!new_cache_atom->readlocks));
+	    ASSERT((!new->writelock) && (!new->readlocks));
 /*
-            new_cache_atom->writelock = allocdesc->prev->req;
+            new->writelock = allocdesc->prev->req;
 */
-            new_cache_atom->state = CACHE_LOCKDOWN;
-            cache_insert_new_into_hash(cache, new_cache_atom);
+            new->state = CACHE_LOCKDOWN;
+            cache_insert_new_into_hash(cache, new);
             lbn++;
-            new_cache_atom = (lbn % linesize) ? new_cache_atom->line_next : new_cache_atom;
+            new = (lbn % linesize) ? new->line_next : new;
          } while (lbn % linesize);
          if (cache->linesize == 0) {
-            new_cache_atom->line_next = NULL;
-            new_cache_atom->line_prev = lineprev;
+            new->line_next = NULL;
+            new->line_prev = lineprev;
             if (lineprev) {
-               lineprev->line_next = new_cache_atom;
+               lineprev->line_next = new;
             }
-            lineprev =  ((cache->linesize == -1) || (lbn % linesize)) ? new_cache_atom : NULL;
+            lineprev =  ((cache->linesize == -1) || (lbn % linesize)) ? new : NULL;
          }
 /*
       } else if (cache->startallflushes) {
          if (flushstart == -1) {
             flushstart = i;
          }
-         if (new_cache_atom) {
+         if (new) {
             if (toclean) {
-               tocleanlast->line_next = new_cache_atom;
-               tocleanlast = new_cache_atom;
+               tocleanlast->line_next = new;
+               tocleanlast = new;
             } else {
-               toclean = new_cache_atom;
-               tocleanlast = new_cache_atom;
+               toclean = new;
+               tocleanlast = new;
             }
             while (tocleanlast->line_next) {
                tocleanlast = tocleanlast->line_next;
@@ -1229,7 +1163,7 @@ struct cache_mem_event *cache_allocate_space_continue (struct cache_mem *cache, 
 */
       } else {
          allocdesc->lockstop = lbn;
-         allocdesc->cleaned = new_cache_atom;
+         allocdesc->cleaned = new;
          allocdesc->lineprev = lineprev;
          /* This needs fixing! */
 /*
@@ -1257,9 +1191,7 @@ static struct cache_mem_event * cache_allocate_space (struct cache_mem *cache, i
    struct cache_mem_event *allocdesc = (struct cache_mem_event *) getfromextraq();
    int linesize = max(1, cache->linesize);
 
-#ifdef DEBUG_CACHEMEM
-   fprintf (outputfile, "*** %f: Entered cache_allocate_space: lbn %d, size %d, linesize %d\n", simtime, lbn, size, cache->linesize);
-#endif
+   // fprintf (outputfile, "Entered cache_allocate_space: lbn %d, size %d, linesize %d\n", lbn, size, cache->linesize);
 
    allocdesc->type = CACHE_EVENT_ALLOCATE;
    allocdesc->req = rwdesc->req;
@@ -1489,10 +1421,6 @@ static void cache_unlock_attached_prefetch (struct cache_mem *cache, struct cach
 
 static int cache_read_continue (struct cache_mem *cache, struct cache_mem_event *readdesc)
 {
-#ifdef DEBUG_CACHEMEM
-   fprintf (outputfile, "*** %f: cache_read_continue\n", simtime );
-#endif
-
    cache_atom *line = NULL;
    cache_atom *tmp;
    int i, j;
@@ -1655,15 +1583,13 @@ static int cache_write_continue (struct cache_mem *cache, struct cache_mem_event
    int lbn = writedesc->req->blkno;
    int size = writedesc->req->bcount;
    int linesize = (cache->linesize > 1) ? cache->linesize : 1;
-   i = writedesc->lockstop;
-
-#ifdef DEBUG_CACHEMEM
-   fprintf (outputfile, "*** %f: cache_write_continue  rw %d, devno %d, lbn %d, size %d, linesize %d, lockstop %d\n", simtime, writedesc->req->flags, devno, lbn, size, linesize, i );
-#endif
 
    if (cache->size == 0) {
       return(0);
    }
+   i = writedesc->lockstop;
+
+   // fprintf (outputfile, "Entered cache_write_continue: lbn %d, size %d, i %d\n", lbn, size, i);
 
 write_cont_loop:
 
@@ -1769,14 +1695,12 @@ cachemem_get_block (struct cache_if *c,
 		    void (**donefunc)(void *, ioreq_event *), 
 		    void *doneparam)
 {
-   struct cache_mem *cache = (struct cache_mem *)c;
+  struct cache_mem *cache = (struct cache_mem *)c;
    struct cache_mem_event *rwdesc = (struct cache_mem_event *) getfromextraq();
    int ret;
 
-#ifdef DEBUG_CACHEMEM
-   fprintf (outputfile, "*** %f: totalreqs = %d\n", simtime, disksim->totalreqs);
-   fprintf (outputfile, "*** %f: Entered cache_get_block: rw %d, devno %d, blkno %d, size %d\n", simtime, (req->flags & READ), req->devno, req->blkno, req->bcount);
-#endif
+   // fprintf (outputfile, "totalreqs = %d\n", disksim->totalreqs);
+   // fprintf (outputfile, "%.5f: Entered cache_get_block: rw %d, devno %d, blkno %d, size %d\n", simtime, (req->flags & READ), req->devno, req->blkno, req->bcount);
 
    rwdesc->type = (req->flags & READ) ? CACHE_EVENT_READ : CACHE_EVENT_WRITE;
    rwdesc->donefunc = donefunc;
@@ -2038,18 +1962,15 @@ cachemem_disk_access_complete (struct cache_if *c, ioreq_event *curr)
    ioreq_event *req;
    struct cache_mem_event *tmp = cache->IOwaiters;
 
-#ifdef DEBUG_CACHEMEM
-   fprintf (outputfile, "*** %f: Entered cache_disk_access_complete: blkno %d, bcount %d, devno %d\n", simtime, curr->blkno, curr->bcount, curr->devno);
-#endif
+   // fprintf (outputfile, "Entered cache_disk_access_complete: blkno %d, bcount %d, devno %d\n", curr->blkno, curr->bcount, curr->devno);
 
    while (tmp) {
       req = tmp->req;
       while (req) {
          if ((curr->devno == req->devno) && ((curr->blkno == tmp->accblkno) || ((tmp->accblkno == -1) && ((req->next) || (tmp->type == CACHE_EVENT_SYNC) || (tmp->type == CACHE_EVENT_IDLESYNC)) && (curr->blkno == req->blkno)))) {
 
-#ifdef DEBUG_CACHEMEM
-      fprintf (outputfile, "*** %f: cachemem_disk_access_complete  Matched: tmp %p, req %p, blkno %d, accblkno %d, reqblkno %d\n", simtime, tmp, req, curr->blkno, tmp->accblkno, req->blkno);
-#endif
+   // fprintf (outputfile, "Matched: tmp %p, req %p, blkno %d, accblkno %d, reqblkno %d\n", tmp, req, curr->blkno, tmp->accblkno, req->blkno);
+
             goto completed_access;
          }
          req = req->next;
@@ -2254,12 +2175,12 @@ cachemem_initialize (struct cache_if *c,
    cache->partwrites = NULL;
    cache->linewaiters = NULL;
    cache->linebylinetmp = 0;
-   for (i=0; i < CACHE_HASHSIZE; i++) {
+   for (i=0; i<CACHE_HASHSIZE; i++) {
       cache->hash[i] = 0;
    }
-   for (j=0; j < (cache->mapmask+1); j++) {
+   for (j=0; j<(cache->mapmask+1); j++) {
       cache_mapentry *mapentry = &cache->map[j];
-      for (i=0; i < CACHE_MAXSEGMENTS; i++) {
+      for (i=0; i<CACHE_MAXSEGMENTS; i++) {
          while ((tmp = mapentry->lru[i])) {
             cache_remove_from_lrulist(mapentry, tmp, i);
             cache_add_to_lrulist(mapentry, tmp, CACHE_SEGNUM);
@@ -2299,13 +2220,13 @@ cachemem_initialize (struct cache_if *c,
       timereq->ptr = cache;
       addtointq((event *)timereq);
    }
-   for (i=0; i < numdevs; i++) {
+   for (i=0; i<numdevs; i++) {
       struct ioq *queue = (*queuefind)(queuefindparam, i);
-      if (cache->flush_idledelay > 0.0) {
-         ioqueue_set_idlework_function(queue, &disksim->idlework_cachemem, cache, cache->flush_idledelay);
+      if (cache->flush_idledelay >= 0.0) {
+	 ioqueue_set_idlework_function(queue, &disksim->idlework_cachemem, cache, cache->flush_idledelay);
       }
       if (cache == NULL) {
-         ioqueue_set_concatok_function(queue, &disksim->concatok_cachemem, cache);
+	 ioqueue_set_concatok_function(queue, &disksim->concatok_cachemem, cache);
       }
    }
    cachemem_resetstats((struct cache_if *)cache);
@@ -2388,18 +2309,18 @@ cachemem_copy (struct cache_if *c)
   int i, j;
 
    cache_mapentry *mapentry;
-   struct cache_mem *new_cache_mem;
+   struct cache_mem *new;
 
-   new_cache_mem = (struct cache_mem *) DISKSIM_malloc(sizeof(struct cache_mem));
-   bzero(new_cache_mem, sizeof(struct cache_mem));
+   new = (struct cache_mem *) DISKSIM_malloc(sizeof(struct cache_mem));
+   bzero(new, sizeof(struct cache_mem));
 
    mapentry = (cache_mapentry *) DISKSIM_malloc(sizeof(cache_mapentry));
    bzero(mapentry, sizeof(cache_mapentry));
 
 
-   ASSERT((new_cache_mem != NULL) && (mapentry != NULL));
+   ASSERT((new != NULL) && (mapentry != NULL));
 
-   new_cache_mem->map = mapentry;
+   new->map = mapentry;
    for (i=0; i<(cache->mapmask+1); i++) {
       mapentry[i].freelist = NULL;
       for (j=0; j<CACHE_MAXSEGMENTS; j++) {
@@ -2408,35 +2329,35 @@ cachemem_copy (struct cache_if *c)
       }
    }
 
-   new_cache_mem->issuefunc = cache->issuefunc;
+   new->issuefunc = cache->issuefunc;
 
-   new_cache_mem->issueparam = cache->issueparam;
-   new_cache_mem->size = cache->size;
-   new_cache_mem->atomsize = cache->atomsize;
-   new_cache_mem->numsegs = cache->numsegs;
-   new_cache_mem->linesize = cache->linesize;
-   new_cache_mem->atomsperbit = cache->atomsperbit;
-   new_cache_mem->lockgran = cache->lockgran;
-   new_cache_mem->sharedreadlocks = cache->sharedreadlocks;
-   new_cache_mem->maxreqsize = cache->maxreqsize;
-   new_cache_mem->replacepolicy = cache->replacepolicy;
-   new_cache_mem->mapmask = cache->mapmask;
-   new_cache_mem->writescheme = cache->writescheme;
-   new_cache_mem->flush_policy = cache->flush_policy;
-   new_cache_mem->flush_period = cache->flush_period;
-   new_cache_mem->flush_idledelay = cache->flush_idledelay;
-   new_cache_mem->flush_maxlinecluster = cache->flush_maxlinecluster;
-   new_cache_mem->read_prefetch_type = cache->read_prefetch_type;
-   new_cache_mem->writefill_prefetch_type = cache->writefill_prefetch_type;
-   new_cache_mem->prefetch_waitfor_locks = cache->prefetch_waitfor_locks;
-   new_cache_mem->startallflushes = cache->startallflushes;
-   new_cache_mem->allocatepolicy = cache->allocatepolicy;
-   new_cache_mem->read_line_by_line = cache->read_line_by_line;
-   new_cache_mem->write_line_by_line = cache->write_line_by_line;
-   new_cache_mem->maxscatgath = cache->maxscatgath;
-   new_cache_mem->no_write_allocate = cache->no_write_allocate;
+   new->issueparam = cache->issueparam;
+   new->size = cache->size;
+   new->atomsize = cache->atomsize;
+   new->numsegs = cache->numsegs;
+   new->linesize = cache->linesize;
+   new->atomsperbit = cache->atomsperbit;
+   new->lockgran = cache->lockgran;
+   new->sharedreadlocks = cache->sharedreadlocks;
+   new->maxreqsize = cache->maxreqsize;
+   new->replacepolicy = cache->replacepolicy;
+   new->mapmask = cache->mapmask;
+   new->writescheme = cache->writescheme;
+   new->flush_policy = cache->flush_policy;
+   new->flush_period = cache->flush_period;
+   new->flush_idledelay = cache->flush_idledelay;
+   new->flush_maxlinecluster = cache->flush_maxlinecluster;
+   new->read_prefetch_type = cache->read_prefetch_type;
+   new->writefill_prefetch_type = cache->writefill_prefetch_type;
+   new->prefetch_waitfor_locks = cache->prefetch_waitfor_locks;
+   new->startallflushes = cache->startallflushes;
+   new->allocatepolicy = cache->allocatepolicy;
+   new->read_line_by_line = cache->read_line_by_line;
+   new->write_line_by_line = cache->write_line_by_line;
+   new->maxscatgath = cache->maxscatgath;
+   new->no_write_allocate = cache->no_write_allocate;
 
-   return (struct cache_if *)new_cache_mem;
+   return (struct cache_if *)new;
 }
 
 
@@ -2512,7 +2433,7 @@ struct cache_if *disksim_cachemem_loadparams(struct lp_block *b)
 {
   struct cache_mem *result;
 
-  result = (struct cache_mem *)calloc(1, sizeof(struct cache_mem));
+  result = calloc(1, sizeof(struct cache_mem));
   result->hdr = disksim_cache_mem;
 
   result->name = b->name ? strdup(b->name) : 0;
@@ -2543,4 +2464,7 @@ struct cache_if *disksim_cachemem_loadparams(struct lp_block *b)
   return (struct cache_if *)result;
 }
 
-// End of file
+
+
+
+

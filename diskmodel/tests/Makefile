@@ -32,7 +32,7 @@ CFLAGS = -g $(DISKMODEL_CFLAGS) $(LIBPARAM_CFLAGS) $(LIBDDBG_CFLAGS)
 
 LDFLAGS = $(DISKMODEL_LDFLAGS) $(LIBPARAM_LDFLAGS) $(LIBDDBG_LDFLAGS)
 
-tests = layout_simple layout_simple2 layout_simple_0t layout_track layout_raw layout_bogon layout_skew mech_seek
+tests = layout_simple layout_simple_0t layout_track layout_raw layout_bogon layout_skew mech_seek
 
 all: $(tests)
 

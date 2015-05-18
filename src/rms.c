@@ -112,7 +112,11 @@ double line1_y[MAX_POINTS];
 double line2_x[MAX_POINTS];
 double line2_y[MAX_POINTS];
 
-void get_line( char *filename, double *x, double *y, char *distname)
+void get_line(filename, x, y, distname)
+char *filename;
+double *x;
+double *y;
+char *distname;
 {
    FILE *infile;
    char line[201];
@@ -144,7 +148,11 @@ void get_line( char *filename, double *x, double *y, char *distname)
 }
 
 
-double compute_rms( double *x1, double *y1, double *x2, double *y2 )
+double compute_rms(x1, y1, x2, y2)
+double *x1;
+double *y1;
+double *x2;
+double *y2;
 {
    int count = 0;
    double runval = 0.0;
@@ -174,7 +182,9 @@ double compute_rms( double *x1, double *y1, double *x2, double *y2 )
 }
 
 
-int main( int argc, char **argv )
+int main(argc, argv)
+int argc;
+char **argv;
 {
    int diskno;
    char distname[201];

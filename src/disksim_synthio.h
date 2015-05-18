@@ -113,6 +113,13 @@
 /* functions exported by disksim_synthio.c */
 
 struct process;
+void synthio_readparams (FILE *parfile);
+void synthio_initialize_generator (struct process *procp);
+void synthio_resetstats (void);
+void synthio_cleanstats (void);
+void synthio_printstats (void);
+void synthio_generate_io_activity (struct process *procp);
+void synthio_param_override (char *paramname, char *paramval, int first, int last);
 
 
 typedef struct dist {
@@ -136,9 +143,9 @@ typedef struct gen {
    int            numdisks;
    int            *devno;
    int            numblocks;
-   int            sectsperdisk;   // total sectors per disk
-   int            blksperdisk;    // number of blocks per disk (block size = blocksize )
-   int            blocksize;      // blocking factor
+   int            sectsperdisk;
+   int            blksperdisk;
+   int            blocksize;
    synthio_distr  tmlimit;
    synthio_distr  genintr;
    synthio_distr  seqintr;
@@ -146,18 +153,6 @@ typedef struct gen {
    synthio_distr  locdist;
    synthio_distr  sizedist;
 } synthio_generator;
-
-
-int  loaddistn( struct lp_list *l, struct dist *result );
-void synthio_readparams (FILE *parfile);
-void synthio_initialize_generator (struct process *procp);
-void synthio_resetstats (void);
-void synthio_cleanstats (void);
-void synthio_printstats (void);
-void synthio_generate_io_activity (struct process *procp);
-void synthio_param_override (char *paramname, char *paramval, int first, int last);
-int  loadsynthdevs( synthio_generator * result, struct lp_list *l );
-int  loadsynthgenerators( synthio_generator * junk, struct lp_list *l );
 
 
 typedef struct synthio_info {
@@ -175,14 +170,14 @@ typedef struct synthio_info {
 
 
 /* one remapping #define for each variable in synthio_info_t */
-#define SYNTHIO_GENS            (disksim->synthio_info->synthio_gens)
-#define SYNTHIO_GENCNT          (disksim->synthio_info->synthio_gencnt)
-#define SYNTHIO_IOCNT           (disksim->synthio_info->synthio_iocnt)
-#define SYNTHIO_ENDIOCNT        (disksim->synthio_info->synthio_endiocnt)
-#define SYNTHIO_ENDTIME         (disksim->synthio_info->synthio_endtime)
-#define SYNTHIO_SYSCALLS        (disksim->synthio_info->synthio_syscalls)
-#define SYNTHIO_SYSCALL_TIME    (disksim->synthio_info->synthio_syscall_time)
-#define SYNTHIO_SYSRET_TIME     (disksim->synthio_info->synthio_sysret_time)
+#define synthio_gens            (disksim->synthio_info->synthio_gens)
+#define synthio_gencnt          (disksim->synthio_info->synthio_gencnt)
+#define synthio_iocnt           (disksim->synthio_info->synthio_iocnt)
+#define synthio_endiocnt        (disksim->synthio_info->synthio_endiocnt)
+#define synthio_endtime         (disksim->synthio_info->synthio_endtime)
+#define synthio_syscalls        (disksim->synthio_info->synthio_syscalls)
+#define synthio_syscall_time    (disksim->synthio_info->synthio_syscall_time)
+#define synthio_sysret_time     (disksim->synthio_info->synthio_sysret_time)
 
 
 #endif    /* DISKSIM_SYNTHIO_H */

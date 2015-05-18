@@ -109,7 +109,6 @@
 #include "disksim_ioqueue.h"
 #include "disksim_bus.h"
 #include "disksim_controller.h"
-#include "disksim_simresult.h"
 #include "config.h"
 
 #include "modules/modules.h"
@@ -143,9 +142,9 @@ static void iodriver_send_event_down_path (ioreq_event *curr)
    busno.value = curr->busno;
    slotno.value = curr->slotno;
    slotno.byte[0] = slotno.byte[0] & 0x0F;
-#ifdef DEBUG_IODRIVER
-   fprintf (outputfile, "%f: iodriver_send_event_down_path: busno %d, slotno %d, type=%d\n", simtime, busno.byte[0], slotno.byte[0], curr->type);
-#endif
+/*
+fprintf (outputfile, "iodriver_send_event_down_path: busno %d, slotno %d\n", busno.byte[0], slotno.byte[0]);
+*/
    bus_deliver_event(busno.byte[0], slotno.byte[0], curr);
 }
 
@@ -222,11 +221,9 @@ static ioreq_event * handle_new_request (iodriver *curriodriver, ioreq_event *cu
 void iodriver_schedule (int iodriverno, ioreq_event *curr)
 {
    ctlr *ctl;
-
-#ifdef DEBUG_IODRIVER
-   fprintf (outputfile, "%f: iodriver_schedule - devno %d, blkno %d, bcount %d, read %d\n", simtime, curr->devno, curr->blkno, curr->bcount, (curr->flags & READ));
-#endif
-
+/*
+fprintf (outputfile, "Entered iodriver_schedule - devno %d, blkno %d, bcount %d, read %d\n", curr->devno, curr->blkno, curr->bcount, (curr->flags & READ));
+*/
    ASSERT1(curr->type == IO_ACCESS_ARRIVE, "curr->type", curr->type);
 
    if ((iodrivers[iodriverno]->consttime != 0.0) 
@@ -402,7 +399,6 @@ void iodriver_access_complete (int iodriverno, intr_event *intrp)
    int devno;
    int skip = 0;
    ctlr *ctl = NULL;
-   time_t now;
 
    if (iodrivers[iodriverno]->type == STANDALONE) {
       req = ioreq_copy((ioreq_event *) intrp->infoptr);
@@ -411,18 +407,9 @@ void iodriver_access_complete (int iodriverno, intr_event *intrp)
       req = (ioreq_event *) intrp->infoptr;
    }
 
-#ifdef DEBUG_IODRIVER
-   fprintf (outputfile, "*** %f: iodriver_access_complete - devno %d, blkno %d, bcount %d, read %d\n", simtime, req->devno, req->blkno, req->bcount, (req->flags & READ));
-   fflush(outputfile);
-#endif
-
-   time( & now );
-   disksim_exectrace( "%.6f,%d,%d,%d,%d,%d,%s", simtime, req->tagID, req->devno, req->blkno, req->bcount, req->flags, asctime( localtime(& now)) );
-
-   if( NULL != DISKSIM_SIM_LOG )
-   {
-       simresult_dumpSimResult( DISKSIM_SIM_LOG, req->tagID - 1 );
-   }
+   
+   disksim_exectrace("Request completion: simtime %f, devno %d, blkno %d, time %f\n", 
+		     simtime, req->devno, req->blkno);
 
    if (iodrivers[iodriverno]->devices[(req->devno)].queuectlr != -1) 
    {
@@ -529,8 +516,8 @@ void iodriver_access_complete (int iodriverno, intr_event *intrp)
       if ((numreqs = logorg_mapcomplete(sysorgs, numsysorgs, tmp)) == COMPLETE) {
 
 	/* update up overall I/O system stats for this completed request */
-	ioreq_event *temp = ioqueue_get_specific_request (OVERALLQUEUE, tmp);
-	ioreq_event *temp2 = ioqueue_physical_access_done (OVERALLQUEUE, temp);
+	ioreq_event *temp = ioqueue_get_specific_request (overallqueue, tmp);
+	ioreq_event *temp2 = ioqueue_physical_access_done (overallqueue, temp);
 	ASSERT (temp2 != NULL);
 	addtoextraq((event *)temp);
 	temp = NULL;
@@ -615,40 +602,40 @@ schedule_next:
 
 void iodriver_respond_to_device (int iodriverno, intr_event *intrp)
 {
-    ioreq_event *req = NULL;
-    int devno;
-    int cause;
+   ioreq_event *req = NULL;
+   int devno;
+   int cause;
 
-    if ((iodrivers[iodriverno]->consttime != 0.0) && (iodrivers[iodriverno]->consttime != IODRIVER_TRACED_QUEUE_TIMES)) {
-        if (iodrivers[iodriverno]->type == STANDALONE) {
-            addtoextraq((event *) intrp->infoptr);
-        }
-        return;
-    }
-    req = (ioreq_event *) intrp->infoptr;
-    /*
-fprintf (outputfile, "%f, Responding to device - cause = %d, blkno %lld\n", simtime, req->cause, req->blkno);
-     */
-    req->type = IO_INTERRUPT_COMPLETE;
-    devno = req->devno;
-    cause = req->cause;
-    switch (cause) {
-    case COMPLETION:
-        if (iodrivers[iodriverno]->type != STANDALONE) {
-            req = ioreq_copy((ioreq_event *) intrp->infoptr);
-        }
-    case DISCONNECT:
-    case RECONNECT:
-        iodriver_send_event_down_path(req);
-        break;
-    case READY_TO_TRANSFER:
-        addtoextraq((event *) req);
-        break;
-    default:
-        fprintf(stderr, "Unknown io_interrupt cause - %d\n", req->cause);
-        exit(1);
-    }
-    iodriver_check_c700_based_status(iodrivers[iodriverno], devno, cause, IO_INTERRUPT_COMPLETE, 0);
+   if ((iodrivers[iodriverno]->consttime != 0.0) && (iodrivers[iodriverno]->consttime != IODRIVER_TRACED_QUEUE_TIMES)) {
+      if (iodrivers[iodriverno]->type == STANDALONE) {
+         addtoextraq((event *) intrp->infoptr);
+      }
+      return;
+   }
+   req = (ioreq_event *) intrp->infoptr;
+/*
+fprintf (outputfile, "%f, Responding to device - cause = %d, blkno %d\n", simtime, req->cause, req->blkno);
+*/
+   req->type = IO_INTERRUPT_COMPLETE;
+   devno = req->devno;
+   cause = req->cause;
+   switch (cause) {
+      case COMPLETION:
+                           if (iodrivers[iodriverno]->type != STANDALONE) {
+                              req = ioreq_copy((ioreq_event *) intrp->infoptr);
+                           }
+      case DISCONNECT:
+      case RECONNECT:
+                           iodriver_send_event_down_path(req);
+                           break;
+      case READY_TO_TRANSFER:
+                           addtoextraq((event *) req);
+                           break;
+      default:
+               fprintf(stderr, "Unknown io_interrupt cause - %d\n", req->cause);
+               exit(1);
+   }
+   iodriver_check_c700_based_status(iodrivers[iodriverno], devno, cause, IO_INTERRUPT_COMPLETE, 0);
 }
 
 
@@ -701,11 +688,9 @@ void iodriver_interrupt_arrive (int iodriverno, intr_event *intrp)
 {
    event *tmp;
    ioreq_event *infoptr = (ioreq_event *) intrp->infoptr;
-
-#ifdef DEBUG_IODRIVER
-   fprintf (outputfile, "%f, iodriver_interrupt_arrive - cause %d, blkno %d\n", simtime, infoptr->cause, infoptr->blkno);
-#endif
-
+/*
+fprintf (outputfile, "%f, Interrupt arriving - cause = %d, blkno %d\n", simtime, infoptr->cause, infoptr->blkno);
+*/
    if ((iodrivers[iodriverno]->consttime == 0.0) || (iodrivers[iodriverno]->consttime == IODRIVER_TRACED_QUEUE_TIMES)) {
       intrp->time = iodriver_get_time_to_handle_interrupt(iodrivers[iodriverno], infoptr->cause, (infoptr->flags & READ));
       iodriver_check_c700_based_status(iodrivers[iodriverno], infoptr->devno, infoptr->cause, IO_INTERRUPT_ARRIVE, infoptr->blkno);
@@ -767,10 +752,8 @@ event * iodriver_request (int iodriverno, ioreq_event *curr)
    fprintf (outputfile, "Entered iodriver_request - simtime %f, devno %d, blkno %d, cause %d\n", simtime, curr->devno, curr->blkno, curr->cause);
    fprintf (stderr, "Entered iodriver_request - simtime %f, devno %d, blkno %d, cause %d\n", simtime, curr->devno, curr->blkno, curr->cause);
 */
-
-   if (NULL != OUTIOS) {
-      fprintf(OUTIOS, "%.6f,%d,%d,%d,%x,%d,%d,%p\n", simtime, curr->devno, curr->blkno, curr->bcount, curr->flags, OVERALLQUEUE->base.listlen + 1, curr->tagID, curr );
-      fflush(OUTIOS);
+   if (outios) {
+      fprintf(outios, "%.6f\t%d\t%d\t%d\t%x\n", simtime, curr->devno, curr->blkno, curr->bcount, curr->flags);
    }
 
 #if 0
@@ -779,7 +762,7 @@ event * iodriver_request (int iodriverno, ioreq_event *curr)
 
    /* add to the overall queue to start tracking */
    ret = ioreq_copy (curr);
-   ioqueue_add_new_request (OVERALLQUEUE, ret);
+   ioqueue_add_new_request (overallqueue, ret);
    ret = NULL;
  
    disksim->totalreqs++;
@@ -787,7 +770,7 @@ event * iodriver_request (int iodriverno, ioreq_event *curr)
       disksim_register_checkpoint (simtime);
    }
    if (disksim->totalreqs == disksim->warmup_iocnt) {
-       WARMUPTIME = simtime;
+      warmuptime = simtime;
       resetstats();
    }
    numreqs = logorg_maprequest(sysorgs, numsysorgs, curr);
@@ -956,12 +939,10 @@ void iodriver_initialize (int standalone)
    int i, j;
    iodriver *curriodriver;
 
-   i = numiodrivers;
-
       /* Code will be broken by multiple iodrivers */
    ASSERT1(numiodrivers == 1, "numiodrivers", numiodrivers);
 
-   ioqueue_initialize (OVERALLQUEUE, 0);
+   ioqueue_initialize (overallqueue, 0);
 
    for (i = 0; i < numiodrivers; i++) {
       curriodriver = iodrivers[i];
@@ -1038,7 +1019,7 @@ void iodriver_resetstats()
    int i, j;
    int numdevs = device_get_numdevices();
 
-   ioqueue_resetstats(OVERALLQUEUE);
+   ioqueue_resetstats(overallqueue);
    for (i=0; i<numiodrivers; i++) {
       for (j=0; j<numdevs; j++) {
          ioqueue_resetstats(iodrivers[i]->devices[j].queue);
@@ -1055,7 +1036,7 @@ void iodriver_resetstats()
 int disksim_iodriver_stats_loadparams(struct lp_block *b) {
   
   if (disksim->iodriver_info == NULL) {
-    disksim->iodriver_info = (struct iodriver_info *)DISKSIM_malloc (sizeof(iodriver_info_t));
+    disksim->iodriver_info = DISKSIM_malloc (sizeof(iodriver_info_t));
     bzero ((char *)disksim->iodriver_info, sizeof(iodriver_info_t));
   }
   
@@ -1086,9 +1067,9 @@ static void add_driver(iodriver *d) {
 
   newlen = c ? 2*c : 2;
   disksim->iodriver_info->iodrivers_len = newlen;
-  iodrivers = (iodriver **)realloc(iodrivers, newlen * sizeof(iodriver *));
+  iodrivers = realloc(iodrivers, newlen * sizeof(iodriver *));
   zerocnt = c ? c : 2;
-  bzero(&(iodrivers[c]), zerocnt * sizeof(iodriver *));
+  bzero((struct iodriver*)iodrivers + c, zerocnt * sizeof(iodriver *));
 
   iodrivers[c] = d;
   numiodrivers++;
@@ -1098,11 +1079,13 @@ struct iodriver *disksim_iodriver_loadparams(struct lp_block *b) {
   iodriver *result;
 
   if (disksim->iodriver_info == NULL) {
-    disksim->iodriver_info = (struct iodriver_info *)calloc (1, sizeof(iodriver_info_t));
+    disksim->iodriver_info = malloc (sizeof(iodriver_info_t));
+    bzero ((char *)disksim->iodriver_info, sizeof(iodriver_info_t));
   }
-  OVERALLQUEUE = ioqueue_createdefaultqueue ();
+  overallqueue = ioqueue_createdefaultqueue ();
    
-  result = (iodriver *)calloc(1, sizeof(iodriver));
+  result = malloc(sizeof(iodriver));
+  bzero(result, sizeof(iodriver));
 
   add_driver(result);
 
@@ -1172,7 +1155,8 @@ int load_iodriver_topo(struct lp_topospec *t, int len) {
 
 
 static iodriver *driver_copy(iodriver *orig) {
-  iodriver *result = (iodriver *)calloc(1, sizeof(iodriver));
+  iodriver *result = malloc(sizeof(iodriver));
+  bzero(result, sizeof(iodriver));
   memcpy(result, orig, sizeof(iodriver));
   result->queue = ioqueue_copy(orig->queue);
   return result;
@@ -1200,9 +1184,9 @@ int iodriver_load_logorg(struct lp_block *b) {
     }
   }
 
-  sysorgs = (logorg **)realloc(sysorgs, newlen * sizeof(struct logorg *));
+  sysorgs = realloc(sysorgs, newlen * sizeof(struct logorg *));
 
-  bzero(&(sysorgs[zeroOff]), 
+  bzero(sysorgs + zeroOff, 
 	(zeroOff ? numsysorgs : 2) * sizeof(struct logorg *));
 
   disksim->iodriver_info->sysorgs_len = newlen;
@@ -1227,7 +1211,7 @@ void iodriver_printstats()
    fprintf (outputfile, "\nOVERALL I/O SYSTEM STATISTICS\n");
    fprintf (outputfile, "-----------------------------\n\n");
    sprintf (prefix, "Overall I/O System ");
-   ioqueue_printstats (&OVERALLQUEUE, 1, prefix);
+   ioqueue_printstats (&overallqueue, 1, prefix);
 
    fprintf (outputfile, "\nSYSTEM-LEVEL LOGORG STATISTICS\n");
    fprintf (outputfile, "------------------------------\n\n");
@@ -1268,9 +1252,6 @@ void iodriver_printstats()
    }
 
    free(queueset);
-   queueset = NULL;
-
-   simresult_saveSimResults();
 }
 
 
@@ -1279,7 +1260,7 @@ void iodriver_cleanstats()
    int i;
    int j;
 
-   ioqueue_cleanstats (OVERALLQUEUE);
+   ioqueue_cleanstats (overallqueue);
    logorg_cleanstats(sysorgs, numsysorgs);
    for (i = 0; i < numiodrivers; i++) {
       for (j = 0; j < iodrivers[i]->numdevices; j++) {
@@ -1301,6 +1282,3 @@ void iodriver_cleanup(void) {
     }
   }
 }
-
-// End of file
-

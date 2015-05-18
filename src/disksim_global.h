@@ -109,140 +109,9 @@
 #include <sys/types.h>
 #include <stdio.h>
 
-#define LBA_SIZE_64_BIT 0    // 0 = 32 bit LBN's, 1 = 64 bit LBN's
-
-#define VERSION "2.01.016"
-
-//*********************************************************************************************
-// 2.01.016 hurst_r
-//     1) Reverted function disk_buffer_block_available
-//     2) Removed WCE code change
-// 2.01.015 hurst_r
-//     1) WCD NULL segment fixes in function disk_buffer_select_write_segment:
-//       a) NULL segment returned for second command if back to back writes to the same block address and range
-//       b) NULL segment returned if read segment in-use and write command bumped up against the read block range.
-//          i.e. Read command received on block 108 for 8 blocks and then write command received on block 100 for 8 blocks.
-//     2) Added routines: disk_flush_write_cache() and disk_buffer_sort_dirty_cache_segments_by_RPO()
-//       1) detect a cache full condition and search for DIRTY write segments, choose best segment for next disk operation
-// 2.01.014 hurst_r
-//     1) Merged most WCE changes
-//     2) Additional debug statements to evaluate WCE feature
-// 2.01.013 hurst_r
-//     1) Fixed command logging - bcount value was incorrect when passed to disk_initiate_seek routine
-//     2) Additional debug statements to evaluate WCE feature
-// 2.01.012 hurst_r
-//     1) Redesigned command tagging and logging for WCE logging
-//      a) added data structure to log one more disk I/O within the command
-//      b) command tagging and logging totally enclosed in disk controller
-//      c) removed code from SynthIO, IOTrace, and IODriver so CacheMem and CacheDev now functions.
-//     2) runvalid script - disabled HPL trace support
-//     3) Additional debug statements to evaluate WCE feature
-// 2.01.011 hurst_r
-//     1) 64 bit OS ready
-//     2) iotrace.c: disabled raw and hpl input formats.
-//     3) Additional debug statements to evaluate post read and write cache algorithms
-//     4) Added post read abort on new command in command queue
-// 2.01.010 hurst_r
-//     1) added three new parameters to the parametric file : diskBlocksXferred, block_first, block_last
-//     2) Additional debug statements to evaluate post read and write cache algorithms
-// 2.01.009 hurst_r
-//     1) disksim_synthio: fixed tag commands. (caused segmentation faults)
-//     2) disksim: commented out printf (caused segmentation fault).
-// 2.01.008 hurst_r
-//     1) Converted macro warmuptime to uppercase WARMUPTIME.
-//     2) Added a unique tag ID to each command so it can be identified for adding new metrics to the command.
-//     3) Added two new files, disksim_simresult.h and disksim_simresult.c, to manage DiskSim paramteric data.
-//     4) log_diskio.txt: added diskctlr cache info to the file
-// 2.01.007 hurst_r
-//     1) Additional debug statements to evaluate IOQueue and diskctlr
-//     2) Added code to produce an event log of the simulation run.
-//     3) disksim_diskctlr.c - disk_write_arrive: Fixed FastWrite issue when writes were cached
-//        The diskctlr state machine would failed to set it's next state causing it ot go idle.
-//        This fix generates the next state allowing the state machine to finish the command.
-//        Moved out of if/else statement:
-//          disk_send_event_up_path(intrp, (delay * currdisk->timescale));
-//          disk_activate_write(currdisk, new_diskreq, TRUE, TRUE);
-// 2.01.006 hurst_r
-//     1) Additional debug statements to evaluate IOQueue and diskctlr
-// 2.01.005 hurst_r
-//     1) Additional debug statements to evaluate IOQueue and diskctlr
-// 2.01.004 hurst_r
-//     1) Additional debug statements to evaluate IOQueue and diskctlr
-// 2.01.003 hurst_r
-//     1) Additional debug statements
-// 2.01.002 hurst_r
-//     1) Added statistics to outputfile for Event block usage.
-// 2.01.001 hurst_r
-//     1) disksim_synthio.c: moved the incrementing of the Synthio IOCount to the function
-//         synthio_appendio. The function synthio_initialize_generator was being called to
-//         initialize each generator and generate an initial time event. However, the IOCount
-//         was not being incremented. Number of time events generated is now equal to the requested
-//         number of time events.
-// 2.01.000 hurst_r
-//     1) Added additional debug statements in preparation for evaluating the ioqueue.
-// 2.0 hurst_r
-//     1) minor fixes to debug code.
-// 1.9 hurst_r
-//     2) Modified to always output read and write statistics even if those operations were not performed.
-//        Allows for automated data collection.
-//     3) Changes to reduce debugger issue with symbol ambiguities.
-//        This is an ongoing process and changes are made when encountered.
-//        Original authors defined macros with the same name as the variable.
-//        Code:
-//          #define numdisks                  (disksim->diskinfo->numdisks)
-//        Changed to:
-//          #define NUMDISKS                  (disksim->diskinfo->numdisks)
-//     4) disk_buffer_estimate_seektime: removed another instance where a constant was added to a variable.
-//          tmptime = maxtime + 1.0;   <- effects seek time calculation.
-//     5) Added simulation start, end and elapsed time to the simulation output file.
-//     6) disksim_sythio.c: Added debug code and additional comments
-//     7) disksim.c: Added code to not output synthio and disk log if the file does not exist.
-//        This allows the user to choose if synthio and/or disk data is collected.
-//     Bug was copied from the cachemem and cachedev devices. Fixed by testing for flush delay > 0.0
-// 1.7 hurst_r Fixed G4 layout
-//     The author of the G4 layout code for Linux used a designated initializer list to initialize
-//     the dm_layout_if data structure. The struct designated initializer list is supported by
-//     but Microsoft C does not support them. The designated initializer list is not supported
-//     by the C++ standard. The author of the Windows port used the same methods as in the G1
-//     and G2 layout code but did not include all of the function place holders required to make
-//     it work.
-// 1.6 hurst_r Removed debug messages from statistics file
-//*********************************************************************************************
-
-// DEBUG conditionals
-// Notes:
-//   DEBUG_DISKCACHE_HIT and DEBUG_DISKCTLR_SEEK should give you a trace of everything in the Disk controller
-
-#define DISK_QUEUE_LOG_ON   // logs entries into the Disk Controller IOQueue
-#define DISKLOG_ON
-//#define DEBUGLOG_ON
-
-//#define DEBUG_ON
-//#define DEBUG_EXTRAQ
-//#define DEBUG_INTQ
-//#define DEBUG_BUS
-//#define DEBUG_CACHEMEM
-//#define DEBUG_CONTROLLER
-//#define DEBUG_CTLRDUMB
-//#define DEBUG_CTLRSMART
-//#define DEBUG_DISK
-//#define DEBUG_DISKCACHE
-//#define DEBUG_DISKCTLR
-//#define DEBUG_INTERFACE
-//#define DEBUG_IODRIVER
-//#define DEBUG_IOQUEUE
-//#define DEBUG_IOSIM
-//#define DEBUG_PFSIM
-//#define DEBUG_SIMPLEDISK
-//#define DEBUG_SYNTHIO
-//#define DEBUG_STAT
-//#define DEBUG_MODEL_G4
-
-//typedef int64_t LBA_t;
-
 #ifdef _WIN32
-#define u_int       unsigned int
-#define u_int64_t   unsigned __int64
+#define u_int		unsigned int
+#define u_int64_t	unsigned __int64
 #endif
 
 /* must enable this on Suns and Alphas */
@@ -276,7 +145,7 @@ extern "C" {
 typedef      unsigned u_int;
 #endif
 
-#define ALLOCSIZE	(8192)
+#define ALLOCSIZE	8192
 
 #ifndef TRUE
 #define TRUE	1
@@ -320,39 +189,38 @@ typedef      unsigned u_int;
 
 #include "disksim_reqflags.h"
 
-#define READ_WRITE_MASK DISKSIM_READ
-#define WRITE           DISKSIM_WRITE
-#define READ            DISKSIM_READ
-#define TIME_CRITICAL   DISKSIM_TIME_CRITICAL
-#define TIME_LIMITED    DISKSIM_TIME_LIMITED
-#define TIMED_OUT       DISKSIM_TIMED_OUT
-#define HALF_OUT        DISKSIM_HALF_OUT
-#define MAPPED          DISKSIM_MAPPED
-#define READ_AFTR_WRITE DISKSIM_READ_AFTR_WRITE
-#define SYNCHRONOUS	    DISKSIM_SYNC
-#define ASYNCHRONOUS    DISKSIM_ASYNC
-#define IO_FLAG_PAGEIO  DISKSIM_IO_FLAG_PAGEIO
-#define SEQ             DISKSIM_SEQ
-#define LOCAL           DISKSIM_LOCAL
-#define BATCH_COMPLETE  DISKSIM_BATCH_COMPLETE
+#define WRITE		DISKSIM_WRITE		
+#define READ		DISKSIM_READ		
+#define TIME_CRITICAL	DISKSIM_TIME_CRITICAL	
+#define TIME_LIMITED	DISKSIM_TIME_LIMITED	
+#define TIMED_OUT	DISKSIM_TIMED_OUT	
+#define HALF_OUT	DISKSIM_HALF_OUT	
+#define MAPPED		DISKSIM_MAPPED		
+#define READ_AFTR_WRITE DISKSIM_READ_AFTR_WRITE 
+#define SYNCHRONOUS	DISKSIM_SYNC
+#define ASYNCHRONOUS	DISKSIM_ASYNC
+#define IO_FLAG_PAGEIO	DISKSIM_IO_FLAG_PAGEIO	
+#define SEQ		DISKSIM_SEQ		
+#define LOCAL           DISKSIM_LOCAL	     
+#define BATCH_COMPLETE  DISKSIM_BATCH_COMPLETE  
 
 /* Event Type Ranges */
 
-#define NULL_EVENT          0
-#define PF_MIN_EVENT        1
-#define PF_MAX_EVENT        97
-#define INTR_EVENT          98
-#define INTEND_EVENT        99
-#define IO_MIN_EVENT        100
-#define IO_MAX_EVENT        120
-#define TIMER_EXPIRED       121
-#define CHECKPOINT          122
-#define STOP_SIM            123
-#define EXIT_DISKSIM        124
-#define MEMS_MIN_EVENT      200
-#define MEMS_MAX_EVENT      220
-#define SSD_MIN_EVENT       300
-#define SSD_MAX_EVENT       320
+#define NULL_EVENT      	0
+#define PF_MIN_EVENT    	1
+#define PF_MAX_EVENT    	97
+#define INTR_EVENT		98
+#define INTEND_EVENT		99
+#define IO_MIN_EVENT		100
+#define IO_MAX_EVENT		120
+#define TIMER_EXPIRED		121
+#define CHECKPOINT		122
+#define STOP_SIM		123
+#define EXIT_DISKSIM		124
+#define MEMS_MIN_EVENT		200
+#define MEMS_MAX_EVENT		220
+#define SSD_MIN_EVENT		300
+#define SSD_MAX_EVENT		320
 
 /* Interrupt vector types */
 
@@ -371,30 +239,30 @@ typedef      unsigned u_int;
 #define DISKSIM_TIME_THRESHOLD  0.0013
 
 typedef union {
-    u_int32_t   value;
-    char        byte[4];
+   u_int32_t	value;
+   char		byte[4];
 } intchar;
 
 #define StaticAssert(c) switch (c) case 0: case (c):
 
 typedef struct foo {
-    double time;
-    int    type;
-    struct ev *next;
-    struct ev *prev;
-//    int    temp;  // hurst_r commented out because other structures don't adhere to this
+   double time;
+   int type;
+   struct ev *next;
+   struct ev *prev;
+   int    temp;
 } foo;
 
-#define DISKSIM_EVENT_SIZE	256
+#define DISKSIM_EVENT_SIZE	200
 #define DISKSIM_EVENT_SPACESIZE	(DISKSIM_EVENT_SIZE - sizeof(struct foo))
 
 typedef struct ev {
-    double time;
-    int    type;
-    struct ev *next;
-    struct ev *prev;
-//    int    temp;
-    char   space[DISKSIM_EVENT_SPACESIZE];
+   double time;
+   int type;
+   struct ev *next;
+   struct ev *prev;
+   int    temp;
+   char space[DISKSIM_EVENT_SPACESIZE];
 } event;
 
 typedef struct ioreq_ev {
@@ -402,7 +270,6 @@ typedef struct ioreq_ev {
    int    type;
    struct ioreq_ev *next;
    struct ioreq_ev *prev;
-   int    tagID;        // unique value that identifies this IO request;
    int    bcount;
    int    blkno;
    u_int  flags;
@@ -471,15 +338,11 @@ struct iotrace_info;
 struct rand48_info;
 
 typedef event*(*disksim_iodone_notify_t)(ioreq_event *, void *ctx);
-enum trace_mode_t { DISKSIM_MASTER, DISKSIM_SLAVE, DISKSIM_NONE };
 
 typedef struct disksim {
-   int    tagIDBegin;    // used to track when a command is created (command tagging and logging)
-   int    tagIDEnd;      // used to track when a command has completed (command tagging and logging)
    void * startaddr;
    int    totallength;
    int    curroffset;
-   int    event_count;   // total events simulated
    int    totalreqs;
    int    closedios;
    double closedthinktime;
@@ -502,12 +365,6 @@ typedef struct disksim {
    disksim_iodone_notify_t external_io_done_notify;
    void *notify_ctx;
 
-   FILE * diskqueuelog;     // hurst_r used to log Disk Controller IOQueue activity
-   FILE * disklog;          // hurst_r used to log Disk Seek activity
-   FILE * debuglog;         // hurst_r
-   FILE * eventlog;         // hurst_r used to log events
-   FILE * simlog;           // hurst_r used to log sim results
-   FILE * synthiolog;       // hurst_r used to log SynthIO activity
    FILE * parfile;
    FILE * iotracefile;
    FILE * statdeffile;
@@ -540,14 +397,12 @@ typedef struct disksim {
    void         (*donefunc_cachedev_empty) (void *, ioreq_event *);
    void         (*idlework_cachemem)       (void *, int);
    void         (*idlework_cachedev)       (void *, int);
-   void         (*idlework_diskcltr)       (void *, int);
    int          (*concatok_cachemem)       (void *, int, int, int, int);
    int          (*enablement_disk)         (ioreq_event *);
    void         (*timerfunc_disksim)       (timer_event *);
    void         (*timerfunc_ioqueue)       (timer_event *);
    void         (*timerfunc_cachemem)      (timer_event *);
    void         (*timerfunc_cachedev)      (timer_event *);
-   void         (*timerfunc_diskctlr)      (timer_event *);
 
 /* opaque structures for different modules */
    struct iosim_info *iosim_info;
@@ -569,7 +424,7 @@ typedef struct disksim {
    int verbosity;
 
   int tracepipes[2];
-  enum trace_mode_t trace_mode;
+  enum { DISKSIM_MASTER, DISKSIM_SLAVE, DISKSIM_NONE } trace_mode;
 
   FILE *exectrace;
   char *exectrace_fn;
@@ -578,19 +433,13 @@ typedef struct disksim {
 
 extern disksim_t *disksim;
 
-
 /* remapping #defines for some of the variables in disksim_t */
-#define WARMUPTIME              (disksim->warmuptime)
-#define simtime                 (disksim->simtime)
-#define statdeffile             (disksim->statdeffile)
-#define outputfile              (disksim->outputfile)
-#define OUTIOS                  (disksim->outios)
-#define DISKSIM_DISK_LOG        (disksim->disklog)
-#define DISKSIM_DEBUG_LOG       (disksim->debuglog)
-#define DISKSIM_DISK_QUEUE_LOG  (disksim->diskqueuelog)
-#define DISKSIM_EVENT_LOG       (disksim->eventlog)
-#define DISKSIM_SIM_LOG         (disksim->simlog)
-#define DISKSIM_SYNTHIO_LOG     (disksim->synthiolog)
+#define warmuptime       (disksim->warmuptime)
+#define simtime	         (disksim->simtime)
+#define statdeffile      (disksim->statdeffile)
+#define outputfile       (disksim->outputfile)
+#define outios           (disksim->outios)
+
 
 #ifndef _WIN32
 #define	min(x,y)	((x) < (y) ? (x) : (y))
@@ -624,7 +473,7 @@ void addlisttoextraq (event **headptr);
 INLINE event * getfromextraq (void);
 event * event_copy (event *orig);
 INLINE void addtointq (event *temp);
-int removefromintq (event *curr);
+INLINE int removefromintq (event *curr);
 void scanparam_int (char *parline, char *parname, int *parptr, int parchecks, int parminval, int parmaxval);
 void getparam_int (FILE *parfile, char *parname, int *parptr, int parchecks, int parminval, int parmaxval);
 void getparam_double (FILE *parfile, char *parname, double *parptr, int parchecks, double parminval, double parmaxval);
@@ -634,11 +483,13 @@ event * io_done_notify (ioreq_event *curr);
 
 /* disksim.c functions used for external control */
 
+
+
 int disksim_initialize_disksim_structure (struct disksim *);
 int disksim_loadparams(char *inputfile, int synthgen);
 void disksim_setup_disksim (int argc, char **argv);
 void disksim_set_external_io_done_notify (disksim_iodone_notify_t);
-void disksim_cleanup_and_printstats ( time_t startTime, time_t endTime );
+void disksim_cleanup_and_printstats (void);
 void disksim_cleanstats (void);
 void disksim_printstats2 (void);
 void disksim_simulate_event (int);
@@ -646,14 +497,12 @@ void disksim_restore_from_checkpoint (char *filename);
 void disksim_run_simulation ();
 
 void disksim_printstats(void);
-void dumpIOReq( const char * msg, ioreq_event * curr );
 
 // destructor
 void disksim_cleanup(void);
 
 void disksim_exectrace(char *fmt,...);
 
-char * getEventString( int eventType );
 
 #ifdef __cplusplus
 }

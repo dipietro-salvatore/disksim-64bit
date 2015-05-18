@@ -40,7 +40,7 @@
 #include <time.h>
 
 
-extern int doTests(struct dm_disk_if *, int, char **);
+extern doTests(struct dm_disk_if *, int, char **);
 extern void testsUsage(void);
 extern int minargs;
 

@@ -77,7 +77,7 @@ union YYSTYPE
 #line 55 "libparam.y" /* yacc.c:1909  */
 
   double d;
-  long i;
+  int i;
   char *s;
 
   struct lp_block *b;

@@ -27,9 +27,6 @@
  * OF THIS SOFTWARE OR DOCUMENTATION.  
  */
 
-#ifndef LAYOUT_G4_PRIVATE
-#define LAYOUT_G4_PRIVATE
-
 #define G4_ALLOC_PATH 16
 
 struct g4_path_node {
@@ -48,6 +45,3 @@ struct g4_path {
   int length;
 };
 
-#endif // LAYOUT_G4_PRIVATE
-
-// End of file

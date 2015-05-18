@@ -39,7 +39,11 @@
 // offset of element p in array base of size s
 static int
 aoffset(void *base, void *p, int s) {
+#ifdef WIN32
+  return ((char *)p - (char *)base) / s;
+#else
   return (p - base) / s;
+#endif
 }
 
 struct lp_list *
@@ -292,10 +296,6 @@ g4_load_tp(struct dm_layout_g4 *r,
   
   ddbg_assert(r->track_len == 0);
 
-#ifdef DEBUG_MODEL_G4
-  dump_lp_list( l,  "g4_load_tp" );
-#endif
-
   r->track_len = l->values_pop / TP_FIELDS;
 
   r->track = calloc(r->track_len, sizeof(*r->track));
@@ -306,10 +306,6 @@ g4_load_tp(struct dm_layout_g4 *r,
     r->track[i].spt = l->values[TP_FIELDS*i+2]->v.i;
     r->track[i].sw = dm_angle_dtoi(1.0 / r->track[i].spt);
   }
-
-#ifdef DEBUG_MODEL_G4
-  dump_g4_layout( r, "g4_load_tp" );
-#endif
 
   return 0;
 }
@@ -447,17 +443,14 @@ g4_load_remaps(struct dm_layout_g4 *r,
 
 
 struct dm_layout_if *
-dm_layout_g4_loadparams(struct lp_block *b, struct dm_disk_if *parent)
+dm_layout_g4_loadparams(struct lp_block *b,
+			struct dm_disk_if *parent)
 {
   int i;
   struct dm_layout_g4 *result = calloc(1, sizeof(*result));
   
   result->hdr = layout_g4;
   result->parent = parent;
-
-#ifdef DEBUG_MODEL_G4
-  dump_lp_block( b, "dm_layout_g4_loadparams" );
-#endif
 
   lp_loadparams(result, b, &dm_layout_g4_mod);
 
@@ -469,5 +462,3 @@ dm_layout_g4_loadparams(struct lp_block *b, struct dm_disk_if *parent)
 
   return (struct dm_layout_if *)result;
 }
-
-// End of file

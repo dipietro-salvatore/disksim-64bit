@@ -107,10 +107,10 @@
 #include "config.h"
 #include "disksim_cache.h"
 
-#define CACHE_MAXSEGMENTS       10      /* For S-LRU */
-#define CACHE_LOCKSPERSTRUCT    15
-#define CACHE_HASHSIZE      ((int)(ALLOCSIZE/sizeof(int)))
-#define CACHE_HASHMASK      ((int)(0x00000000 | (CACHE_HASHSIZE - 1)))
+#define CACHE_MAXSEGMENTS	10		/* For S-LRU */
+#define CACHE_LOCKSPERSTRUCT	15
+#define CACHE_HASHSIZE		(ALLOCSIZE/sizeof(int))
+#define CACHE_HASHMASK		(0x00000000 | (CACHE_HASHSIZE - 1))
 
 typedef struct cachelockh {
    struct ioreq_ev *entry[CACHE_LOCKSPERSTRUCT];
@@ -279,7 +279,6 @@ struct cache_mem {
 #define CACHE_FLUSH_MAX		1
 
 void cachemem_setcallbacks(void);
-void cachemem_setup_segs(struct cache_mem *result, struct lp_list *l);
 
 #endif // DISKSIM_CACHEMEM_H
 

@@ -134,57 +134,21 @@ static int
 cachedev_get_maxreqsize (struct cache_if *c)
 {
   struct cache_dev *cache = (struct cache_dev *)c;
-
-#ifdef DEBUG_CACHEDEV
-  fprintf(outputfile, "*** %f: Entered cachedev::cachedev_get_maxreqsize \tcache->maxreqsize=%d\n", simtime, cache->maxreqsize );
-  fflush(outputfile);
-#endif
-
   return(cache->maxreqsize);
 }
 
 
 static void cachedev_empty_donefunc (void *doneparam, ioreq_event *req)
 {
-#ifdef DEBUG_CACHEDEV
-  fprintf(outputfile, "*** %f: Entered cachedev::cachedev_empty_donefunc - adding to extraq type %d, devno %d, blkno %d, bcount %d, flags 0x%x\n", simtime, req->type, req->devno, req->blkno, req->bcount, req->flags );
-  fflush(outputfile);
-#endif
-
-  addtoextraq((event *) req);
+   addtoextraq((event *) req);
 }
 
 
-//*****************************************************************************
-// Function: cachedev_add_ongoing_request
-//	Add cache device to the double linked list
-//
-// Parameters:
-//	struct cache_dev *cache		pointer to a cache device
-//	void *crq					pointer to a double link list
-//
-// Returns: void
-//*****************************************************************************
-
 static void 
-cachedev_add_ongoing_request (struct cache_dev *cache, void *crq)
+cachedev_add_ongoing_request (struct cache_dev *cache, 
+			      void *crq)
 {
   struct cache_dev_event *cachereq = (struct cache_dev_event *)crq;
-
-#ifdef DEBUG_CACHEDEV
-  fprintf(outputfile, "*** %f: Entered cachedev::cachedev_add_ongoing_request", simtime );
-  if( NULL != cachereq )
-  {
-      fprintf(outputfile, "  crq %p", cachereq );
-      if( NULL != cachereq->req )
-	  {
-		 fprintf(outputfile, ", type %d, devno %d, blkno %d, bcount %d, flags 0x%x", cachereq->req->type, cachereq->req->devno, cachereq->req->blkno, cachereq->req->bcount, cachereq->req->flags  );
-	  }
-  }
-  fprintf(outputfile, "\n" );
-  fflush(outputfile);
-#endif
-
    cachereq->next = cache->ongoing_requests;
    cachereq->prev = NULL;
    if (cachereq->next) {
@@ -195,18 +159,9 @@ cachedev_add_ongoing_request (struct cache_dev *cache, void *crq)
 
 
 static void 
-cachedev_remove_ongoing_request (struct cache_dev *cache, struct cache_dev_event *cachereq)
+cachedev_remove_ongoing_request (struct cache_dev *cache, 
+				 struct cache_dev_event *cachereq)
 {
-#ifdef DEBUG_CACHEDEV
-  fprintf(outputfile, "*** %f: Entered cachedev::cachedev_remove_ongoing_request", simtime );
-  if( NULL != cachereq )
-  {
-      fprintf(outputfile, "  crq %p", cachereq );
-  }
-  fprintf(outputfile, "\n" );
-  fflush(outputfile);
-#endif
-
    if (cachereq->next) {
       cachereq->next->prev = cachereq->prev;
    }
@@ -223,11 +178,6 @@ static struct cache_dev_event * cachedev_find_ongoing_request (struct cache_dev 
 {
    struct cache_dev_event *tmp = cache->ongoing_requests;
 
-#ifdef DEBUG_CACHEDEV
-   fprintf(outputfile, "*** %f: Entered cachedev::cachedev_find_ongoing_request, type %d, devno %d, blkno %d, bcount %d, flags 0x%x\n", simtime, req->type, req->devno, req->blkno, req->bcount, req->flags );
-   fflush(outputfile);
-#endif
-
    /* Is this enough to ensure equivalence?? */
    while ((tmp != NULL) && ((req->opid != tmp->req->opid) || (req->blkno != tmp->req->blkno) || (req->bcount != tmp->req->bcount) || (req->buf != tmp->req->buf))) {
       tmp = tmp->next;
@@ -237,26 +187,11 @@ static struct cache_dev_event * cachedev_find_ongoing_request (struct cache_dev 
 }
 
 
-//*****************************************************************************
-// Function: cachedev_count_dirty_blocks
-//	Return a count of how many dirty blocks are in the cachedev
-//  Searches dirtymap for set bits
-//
-// Parameters:
-//	struct cache_dev *cache					pointer to a cache device
-//
-// Returns: void
-//*****************************************************************************
-
+/* Return a count of how many dirty blocks are on the cachedev. */
 static int cachedev_count_dirty_blocks (struct cache_dev *cache)
 {
    int dirtyblocks = 0;
    int i;
-
-#ifdef DEBUG_CACHEDEV
-   fprintf(outputfile, "*** %f: Entered cachedev::cachedev_count_dirty_blocks (dirtymap)\n", simtime );
-   fflush(outputfile);
-#endif
 
    for (i=0; i<cache->size; i++) {
       if (bit_test(cache->dirtymap,i)) {
@@ -267,128 +202,49 @@ static int cachedev_count_dirty_blocks (struct cache_dev *cache)
 }
 
 
-//*****************************************************************************
-// Function: cachedev_setbits
-//	Sets the bits in the bitmap corresponding to the LBA's in the ioreq_event
-//
-// Parameters:
-//	bitstr_t *bitmap		pointer to a bitmap
-//	ioreq_event *req		pointer to an ioreq_event
-//
-// Returns: void
-//*****************************************************************************
-
 static void cachedev_setbits (bitstr_t *bitmap, ioreq_event *req)
 {
-#ifdef DEBUG_CACHEDEV
-   fprintf(outputfile, "*** %f: Entered cachedev::cachedev_setbits from block %d to %d\n", simtime, req->blkno, req->blkno+req->bcount-1  );
-   fflush(outputfile);
-#endif
-
    bit_nset (bitmap, req->blkno, (req->blkno+req->bcount-1));
 }
 
 
-//*****************************************************************************
-// Function: cachedev_clearbits
-//	Clears the bits in the bitmap corresponding to the LBA's in the ioreq_event
-//
-// Parameters:
-//	bitstr_t *bitmap		pointer to a bitmap
-//	ioreq_event *req		pointer to an ioreq_event
-//
-// Returns: void
-//*****************************************************************************
-
 static void cachedev_clearbits (bitstr_t *bitmap, ioreq_event *req)
 {
-#ifdef DEBUG_CACHEDEV
-   fprintf(outputfile, "*** %f: Entered cachedev::cachedev_clearbits from block %d to %d\n", simtime, req->blkno, req->blkno+req->bcount-1 );
-   fflush(outputfile);
-#endif
-
    bit_nclear (bitmap, req->blkno, (req->blkno+req->bcount-1));
 }
 
-
-//*****************************************************************************
-// Function: cachedev_isreadhit
-//	Checks if the corresponding LBA's in the ioreq_event are stored in the cache device
-//  A set bit in the validmap bitmap indicates data valid (no actual data stored)
-//
-// Parameters:
-//	bitstr_t *bitmap		pointer to a bitmap
-//	ioreq_event *req		pointer to an ioreq_event
-//
-// Returns: void
-//*****************************************************************************
 
 static int cachedev_isreadhit (struct cache_dev *cache, ioreq_event *req)
 {
    int lastblk = req->blkno + req->bcount;
    int i;
 
-   int readHit = 1;
    if (lastblk >= cache->size) {
-      readHit = 0;
-   }
-   else
-   {
-	   for (i=req->blkno; i<lastblk; i++) {
-		  if (bit_test(cache->validmap,i) == 0) {
-			 readHit = 0;
-			 break;
-		  }
-	   }
+      return (0);
    }
 
-#ifdef DEBUG_CACHEDEV
-   fprintf(outputfile, "*** %f: Entered cachedev::cachedev_isreadhit (%s)\n", simtime, readHit ? "yes" : "no" );
-   fflush(outputfile);
-#endif
+   for (i=req->blkno; i<lastblk; i++) {
+      if (bit_test(cache->validmap,i) == 0) {
+         return (0);
+      }
+   }
 
-   return readHit;
+   return (1);
 }
 
 
-//*****************************************************************************
-// Function: cachedev_iswritehit
-//	Checks if the corresponding LBA's in the ioreq_event can be written to the cache device
-//
-// Parameters:
-//	bitstr_t *bitmap		pointer to a bitmap
-//	ioreq_event *req		pointer to an ioreq_event
-//
-// Returns: int
-//   0		if LBA range is greater or equal to the maximum capacity of the disk
-//   1      if LBA range is less than the maximum capacity of the disk
-//*****************************************************************************
-
 static int cachedev_iswritehit (struct cache_dev *cache, ioreq_event *req)
 {
-   int writeHit = 1;
-
    if ((req->blkno+req->bcount) >= cache->size) {
-      writeHit = 0;
+      return (0);
    }
-
-#ifdef DEBUG_CACHEDEV
-   fprintf(outputfile, "*** %f: Entered cachedev::cachedev_iswritehit (%s)\n", simtime, writeHit ? "yes" : "no" );
-   fflush(outputfile);
-#endif
-
-   return writeHit;
+   return (1);
 }
 
 
 static int cachedev_find_dirty_cache_blocks (struct cache_dev *cache, int *blknoPtr, int *bcountPtr)
 {
    int blkno;
-
-#ifdef DEBUG_CACHEDEV
-   fprintf(outputfile, "*** %f: Entered cachedev::cachedev_find_dirty_cache_blocks\n", simtime );
-   fflush(outputfile);
-#endif
 
    bit_ffs (cache->dirtymap, cache->size, blknoPtr);
    if (*blknoPtr == -1) {
@@ -416,18 +272,13 @@ static void cachedev_periodic_callback (timer_event *timereq)
 static void cachedev_idlework_callback (void *idleworkparam, int idledevno)
 {
 
-   struct cache_dev *cache = (struct cache_dev *)idleworkparam;
+   struct cache_dev *cache = idleworkparam;
    struct cache_dev_event *flushdesc;
    ioreq_event *flushreq;
    int blkno, bcount;
    struct ioq *queue;
 
    ASSERT (idledevno == cache->real_devno);
-
-#ifdef DEBUG_CACHEDEV
-   fprintf(outputfile, "*** %f: Entered cachedev::cachedev_idlework_callback\n", simtime );
-   fflush(outputfile);
-#endif
 
    queue = (*cache->queuefind)(cache->queuefindparam, cache->real_devno);
    if (ioqueue_get_number_in_queue (queue) != 0) {
@@ -472,15 +323,13 @@ cachedev_get_block (struct cache_if *c,
 		    void (**donefunc)(void *, ioreq_event *), 
 		    void *doneparam)
 {
-   struct cache_dev *cache = (struct cache_dev *)c;
+  struct cache_dev *cache = (struct cache_dev *)c;
    struct cache_dev_event *rwdesc = (struct cache_dev_event *) getfromextraq();
    ioreq_event *fillreq;
    int devno;
 
-#ifdef DEBUG_CACHEDEV
-   fprintf (outputfile, "*** cachedev::totalreqs = %d\n", disksim->totalreqs);
-   fprintf (outputfile, "*** %f: Entered cachedev::cachedev_get_block: rw %d, devno %d, blkno %d, size %d\n", simtime, (req->flags & READ), req->devno, req->blkno, req->bcount);
-#endif
+   // fprintf (outputfile, "totalreqs = %d\n", disksim->totalreqs);
+   // fprintf (outputfile, "%.5f: Entered cache_get_block: rw %d, devno %d, blkno %d, size %d\n", simtime, (req->flags & READ), req->devno, req->blkno, req->bcount);
 
    if (req->devno != cache->real_devno) {
       fprintf (stderr, "cachedev_get_block trying to cache blocks for wrong device (%d should be %d)\n", req->devno, cache->real_devno);
@@ -522,9 +371,7 @@ cachedev_get_block (struct cache_if *c,
       fillreq->type = IO_ACCESS_ARRIVE;
       fillreq->devno = devno;
 
-#ifdef DEBUG_CACHEDEV
-      fprintf (outputfile, "*** %f: cachedev::fillreq (inserts into ioqueue?): devno %d, blkno %d, bcount %d, flags %x, buf %p\n", simtime, fillreq->devno, fillreq->blkno, fillreq->bcount, fillreq->flags, fillreq->buf);
-#endif
+      // fprintf (outputfile, "fillreq: devno %d, blkno %d, buf %p\n", fillreq->devno, fillreq->blkno, fillreq->buf);
 
       (*cache->issuefunc)(cache->issueparam, fillreq);
       return (1);
@@ -549,9 +396,7 @@ cachedev_free_block_clean (struct cache_if *c,
   struct cache_dev *cache = (struct cache_dev *)c;
    struct cache_dev_event *rwdesc;
 
-#ifdef DEBUG_CACHEDEV
-   fprintf (outputfile, "*** %f: Entered cachedev::cache_free_block_clean: blkno %d, bcount %d, devno %d\n", simtime, req->blkno, req->bcount, req->devno);
-#endif
+   // fprintf (outputfile, "%.5f: Entered cache_free_block_clean: blkno %d, bcount %d, devno %d\n", simtime, req->blkno, req->bcount, req->devno);
 
    /* For now, just find relevant rwdesc and free it.                       */
    /* Later, write it to the cache device (and update the cache map thusly. */
@@ -583,9 +428,7 @@ cachedev_free_block_dirty (struct cache_if *c,
    ioreq_event *flushreq;
    struct cache_dev_event *writedesc;
 
-#ifdef DEBUG_CACHEDEV
-   fprintf (outputfile, "*** %f, Entered cachedev::cache_free_block_dirty: devno %d blkno %d, size %d\n", simtime, req->devno, req->blkno, req->bcount);
-#endif
+   // fprintf (outputfile, "%.5f, Entered cache_free_block_dirty: blkno %d, size %d\n", simtime, req->blkno, req->bcount);
 
    cache->stat.writes++;
    cache->stat.writeblocks += req->bcount;
@@ -612,9 +455,7 @@ cachedev_free_block_dirty (struct cache_if *c,
       cache->stat.writemisses++;
    }
 
-#ifdef DEBUG_CACHEDEV
-   fprintf (outputfile, "*** %f: cachedev::cachedev_free_block_dirty flushreq: devno %d, blkno %d, bcount %d, buf %p\n", simtime, flushreq->devno, flushreq->blkno, flushreq->bcount, flushreq->buf);
-#endif
+   // fprintf (outputfile, "flushreq: devno %d, blkno %d, buf %p\n", flushreq->devno, flushreq->blkno, flushreq->buf);
 
    (*cache->issuefunc)(cache->issueparam, flushreq);
 
@@ -630,10 +471,6 @@ cachedev_free_block_dirty (struct cache_if *c,
 
 int cachedev_sync (struct cache_if *c)
 {
-#ifdef DEBUG_CACHEDEV
-   fprintf (outputfile, "*** %lf: cachedev::cachedev_sync (does nothing)\n", simtime );
-#endif
-
   return(0);
 }
 
@@ -643,12 +480,10 @@ cachedev_disk_access_complete (struct cache_if *c,
 			       ioreq_event *curr)
 {
   struct cache_dev *cache = (struct cache_dev *)c;
-   struct cache_dev_event *rwdesc = (struct cache_dev_event *)curr->buf;
+   struct cache_dev_event *rwdesc = curr->buf;
    struct cache_dev_event *tmp = NULL;
 
-#ifdef DEBUG_CACHEDEV
-   fprintf (outputfile, "*** %f: Entered cachedev::cache_disk_access_complete: cacheDevEventType %d, buf %p, type %d, devno %d, blkno %d, bcount %d, flags 0x%x\n", simtime, rwdesc->type, curr->buf, curr->type, curr->devno, curr->blkno, curr->bcount, curr->flags);
-#endif
+   // fprintf (outputfile, "Entered cache_disk_access_complete: blkno %d, bcount %d, devno %d, buf %p\n", curr->blkno, curr->bcount, curr->devno, curr->buf);
 
    switch(rwdesc->type) {
    case CACHE_EVENT_READ:
@@ -662,10 +497,6 @@ cachedev_disk_access_complete (struct cache_if *c,
          flushreq->flags = WRITE;
          flushreq->devno = cache->cache_devno;
          rwdesc->type = CACHE_EVENT_POPULATE_ALSO;
-
-#ifdef DEBUG_CACHEDEV
-   fprintf (outputfile, "*** %f: Entered cachedev::cache_disk_access_complete - flushing memory cache to disk: type %d, devno %d, blkno %d, bcount %d, flags 0x%x, buf %p\n", simtime, flushreq->type, flushreq->devno, flushreq->blkno, flushreq->bcount, flushreq->flags, flushreq->buf);
-#endif
          (*cache->issuefunc)(cache->issueparam, flushreq);
          cache->stat.popwrites++;
          cache->stat.popwriteblocks += rwdesc->req->bcount;
@@ -762,10 +593,6 @@ cachedev_wakeup_complete (struct cache_if *c,
   struct cache_dev *cache = (struct cache_dev *)c;
   ASSERT (0);
 
-#ifdef DEBUG_CACHEDEV
-   fprintf (outputfile, "*** %f: Entered cachedev::cachedev_wakeup_complete (does nothing)\n", simtime );
-#endif
-
   // ???
 
 #if 0
@@ -793,11 +620,6 @@ static void
 cachedev_resetstats (struct cache_if *c)
 {
   struct cache_dev *cache = (struct cache_dev *)c;
-
-#ifdef DEBUG_CACHEDEV
-   fprintf (outputfile, "*** %f: Entered cachedev::cachedev_resetstats\n", simtime );
-#endif
-
   cache->stat.reads = 0;
   cache->stat.readblocks = 0;
   cache->stat.readhitsfull = 0;
@@ -819,13 +641,9 @@ cachedev_resetstats (struct cache_if *c)
 void 
 cachedev_setcallbacks(void)
 {
-#ifdef DEBUG_CACHEDEV
-   fprintf (outputfile, "*** %f: Entered cachedev::cachedev_setcallbacks\n", simtime );
-#endif
-
   disksim->donefunc_cachedev_empty = cachedev_empty_donefunc;
-  disksim->idlework_cachedev       = cachedev_idlework_callback;
-  disksim->timerfunc_cachedev      = cachedev_periodic_callback;
+  disksim->idlework_cachedev = cachedev_idlework_callback;
+  disksim->timerfunc_cachedev = cachedev_periodic_callback;
 }
 
 
@@ -842,10 +660,6 @@ cachedev_initialize (struct cache_if *c,
   struct cache_dev *cache = (struct cache_dev *)c;
   StaticAssert (sizeof(struct cache_dev_event) <= DISKSIM_EVENT_SIZE);
 
-#ifdef DEBUG_CACHEDEV
-   fprintf (outputfile, "*** %f: Entered cachedev::cachedev_initialize\n", simtime );
-#endif
-
    cache->issuefunc = issuefunc;
    cache->issueparam = issueparam;
    cache->queuefind = queuefind;
@@ -858,7 +672,7 @@ cachedev_initialize (struct cache_if *c,
    bzero (cache->dirtymap, bitstr_size(cache->size));
    cachedev_resetstats(c);
 
-   if (cache->flush_idledelay > 0.0) {
+   if (cache->flush_idledelay) {
       struct ioq *queue = (*queuefind)(queuefindparam,cache->real_devno);
       ASSERT (queue != NULL);
       ioqueue_set_idlework_function (queue, 
@@ -877,9 +691,6 @@ cachedev_initialize (struct cache_if *c,
 static void 
 cachedev_cleanstats (struct cache_if *cache)
 {
-#ifdef DEBUG_CACHEDEV
-   fprintf (outputfile, "*** %f: Entered cachedev::cachedev_cleanstats (does nothing)\n", simtime );
-#endif
 }
 
 
@@ -932,40 +743,25 @@ cachedev_printstats (struct cache_if *c, char *prefix)
 }
 
 
-//*****************************************************************************
-// Function: cachedev_copy
-//   Creates a new copy of cache_if in memory and returns a pointer to it
-//
-// Parameters:
-//   struct cache_if *c		data we wish to copy 
-//
-// Returns: struct cache_if *
-//*****************************************************************************
-
 static struct cache_if * 
 cachedev_copy (struct cache_if *c)
 {
-  struct cache_dev *cache    = (struct cache_dev *)c;
-  struct cache_dev *newCache = (struct cache_dev *) DISKSIM_malloc(sizeof(struct cache_dev));
+  struct cache_dev *cache = (struct cache_dev *)c;
+  struct cache_dev *new = (struct cache_dev *) DISKSIM_malloc(sizeof(struct cache_dev));
 
-  ASSERT(newCache != NULL);
-
-#ifdef DEBUG_CACHEDEV
-   fprintf (outputfile, "*** %f: Entered cachedev::cachedev_copy\n", simtime );
-#endif
-
-  bzero (newCache, sizeof(struct cache_dev));
+  ASSERT(new != NULL);
+  bzero (new, sizeof(struct cache_dev));
   
-  newCache->issuefunc = cache->issuefunc;
-  newCache->issueparam = cache->issueparam;
-  newCache->queuefind = cache->queuefind;
-  newCache->queuefindparam = cache->queuefindparam;
-  newCache->wakeupfunc = cache->wakeupfunc;
-  newCache->wakeupparam = cache->wakeupparam;
-  newCache->size = cache->size;
-  newCache->maxreqsize = cache->maxreqsize;
+  new->issuefunc = cache->issuefunc;
+  new->issueparam = cache->issueparam;
+  new->queuefind = cache->queuefind;
+  new->queuefindparam = cache->queuefindparam;
+  new->wakeupfunc = cache->wakeupfunc;
+  new->wakeupparam = cache->wakeupparam;
+  new->size = cache->size;
+  new->maxreqsize = cache->maxreqsize;
   
-  return (struct cache_if *)newCache;
+  return (struct cache_if *)new;
 }
 
 static struct cache_if disksim_cache_dev = {
@@ -989,11 +785,7 @@ struct cache_if *disksim_cachedev_loadparams(struct lp_block *b)
   int c;
   struct cache_dev *result;
 
-#ifdef DEBUG_CACHEDEV
-   fprintf (outputfile, "*** %f: Entered cachedev::disksim_cachedev_loadparams\n", simtime );
-#endif
-
-  result = (struct cache_dev *)calloc(1, sizeof(struct cache_dev));
+  result = calloc(1, sizeof(struct cache_dev));
   result->hdr = disksim_cache_dev;
  
 
@@ -1006,5 +798,5 @@ struct cache_if *disksim_cachedev_loadparams(struct lp_block *b)
   return (struct cache_if *)result;
 }
 
-// #End of file: disksim_cachedev.c
+
 

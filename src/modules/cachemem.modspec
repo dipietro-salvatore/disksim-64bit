@@ -39,7 +39,7 @@ PROTO struct cache_if *disksim_cachemem_loadparams(struct lp_block *b);
 PARAM Cache size		I	1
 TEST i >= 0
 INIT if(result->map) { fprintf(stderr, "*** ignoring repeat cache size definition.\n"); } 
-INIT else { int c2; result->size = i; result->mapmask = 0; result->map = (cache_mapentry *)DISKSIM_malloc((result->mapmask+1)*sizeof(cache_mapentry)); result->map[0].freelist = NULL; for (c2=0; c2<CACHE_MAXSEGMENTS; c2++) { result->map[0].maxactive[c2] = result->size; result->map[0].lru[c2] = NULL; } }
+INIT else { int c2; result->size = i; result->mapmask = 0; result->map = DISKSIM_malloc((result->mapmask+1)*sizeof(cache_mapentry)); result->map[0].freelist = NULL; for (c2=0; c2<CACHE_MAXSEGMENTS; c2++) { result->map[0].maxactive[c2] = result->size; result->map[0].lru[c2] = NULL; } }
 
 This specifies the total size of the cache in blocks.
 

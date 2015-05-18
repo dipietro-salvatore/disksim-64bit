@@ -37,14 +37,14 @@ PROTO int disksim_synthio_loadparams(struct lp_block *b);
 
 PARAM Number of I/O requests to generate	I	1 
 TEST i > 0
-INIT SYNTHIO_ENDIOCNT = i;
+INIT synthio_endiocnt = i;
 
 This specifies the number of independent, concurrent, request-generating
 processes.
 
 PARAM Maximum time of trace generated		D	1 
 TEST d > 0.0
-INIT SYNTHIO_ENDTIME = d; SYNTHIO_ENDTIME *= 1000.0;
+INIT synthio_endtime = d; synthio_endtime *= 1000.0;
 
 This specifies the maximum number of I/O requests to generate before
 ending the simulation run.  A simulation run continues until either
@@ -53,7 +53,7 @@ simulation time (see below) is reached.
 
 PARAM System call/return with each request	I	1 
 TEST RANGE(i,0,1)
-INIT SYNTHIO_SYSCALLS = i;
+INIT synthio_syscalls = i;
 
 This specifies whether or not each request occurs within the context of a
 system call (which may affect the behavior of the associated process
@@ -63,7 +63,7 @@ event.
 
 PARAM Think time from call to request		D	1 
 TEST d >= 0.0
-INIT SYNTHIO_SYSCALL_TIME = d;
+INIT synthio_syscall_time = d;
 
 This specifies the think time (i.e., computation time) between the system
 call event and the disk request event.  This parameter is only
@@ -71,7 +71,7 @@ relevant if the above Boolean parameter is set to true~(1).
 
 PARAM Think time from request to return		D	1 
 TEST d >= 0.0
-INIT SYNTHIO_SYSRET_TIME = d;
+INIT synthio_sysret_time = d;
 
 This specifies the think time (i.e., computation time) between the disk
 request event and the system call return event.  This parameter is
@@ -81,5 +81,3 @@ PARAM Generators				LIST	1
 TEST !loadsynthgenerators(0,l)
 
 A list of synthgen block values describing the generators.
-
-# End of file

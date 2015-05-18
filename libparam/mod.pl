@@ -402,6 +402,9 @@ foreach $i (@loaderFns) {
     print CODE "(void *)$i";
     $j++;
 }
+if($j == 0) {
+    print CODE "NULL";
+}
 print CODE "\n};\n\n";
 
 print CODE "lp_paramdep_t $MODNAME"."_deps[] = {\n";
@@ -412,6 +415,9 @@ foreach $i (@depFns) {
     }
     print CODE "$i";
     $j++;
+}
+if($j == 0) {
+    print CODE "NULL";
 }
 print CODE "\n};\n\n";
 

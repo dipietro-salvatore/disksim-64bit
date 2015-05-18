@@ -34,8 +34,6 @@ MODULE ctlr
 HEADER \#include "../disksim_ctlr.h"
 RESTYPE struct controller *
 PROTO struct controller *disksim_ctlr_loadparams(struct lp_block *b);
-PROTO struct cache_if *disksim_cache_loadparams(struct lp_block *b);
-PROTO struct ioq *disksim_ioqueue_loadparams(struct lp_block *b, int printqueuestats, int printcritstats, int printidlestats, int printintarrstats, int printsizestats);
 
 PARAM type				I	1 
 TEST RANGE(i,1,3)
